@@ -3,6 +3,7 @@
  * This is only a minimal backend to get started.
  */
 
+import { parseEnv } from '@pulsedesk/contracts';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import {
@@ -12,6 +13,10 @@ import {
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
+  // Fail fast before any Nest DI container exists — see
+  // libs/contracts/src/lib/env.ts for the rationale.
+  parseEnv();
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),

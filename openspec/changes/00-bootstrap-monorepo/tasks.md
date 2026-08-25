@@ -14,10 +14,10 @@
 - [x] 2.2 Test de humo: un import ilegal (ej. `apps/agent-console` importando `libs/db`) debe fallar el lint
 
 ## 3. Datos y configuración
-- [ ] 3.1 `docker-compose.yml` local con PostgreSQL 16 y Valkey, con healthchecks
-- [ ] 3.2 Prisma con `prismaSchemaFolder`, `schema.prisma` mínimo, `output` a `libs/db/src/generated`
-- [ ] 3.3 Migración inicial: `CREATE EXTENSION IF NOT EXISTS citext;`
-- [ ] 3.4 Configuración validada con Zod/class-validator en `apps/api` y `apps/worker`: el proceso no arranca sin `DATABASE_URL`, `REDIS_URL` y los secretos mínimos
+- [x] 3.1 `docker-compose.yml` local con PostgreSQL 16 y Valkey, con healthchecks
+- [x] 3.2 Prisma con `prismaSchemaFolder`, `schema.prisma` mínimo, `output` a `libs/db/src/generated`
+- [x] 3.3 Migración inicial: `CREATE EXTENSION IF NOT EXISTS citext;`
+- [x] 3.4 Configuración validada con Zod/class-validator en `apps/api` y `apps/worker`: el proceso no arranca sin `DATABASE_URL`, `REDIS_URL` y los secretos mínimos
 
 ## 4. Observabilidad mínima
 - [ ] 4.1 Endpoint `/health` en `apps/api`: estado de Postgres, estado de Valkey, `commit` (SHA inyectado en build), `contractsVersion`
