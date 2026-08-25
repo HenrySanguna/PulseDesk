@@ -1,17 +1,17 @@
 # Tasks: Bootstrap Monorepo
 
 ## 1. Workspace y proyectos
-- [ ] 1.1 `create-nx-workspace` con preset integrado (TypeScript, sin framework por defecto)
-- [ ] 1.2 Generar `apps/api` (NestJS) y configurar el adaptador Fastify
-- [ ] 1.3 Generar `apps/worker` como aplicación NestJS standalone (sin HTTP)
-- [ ] 1.4 Generar `apps/agent-console` (Angular 21, standalone, zoneless)
-- [ ] 1.5 Generar `apps/widget` (Angular 21, standalone, zoneless, sin PrimeNG)
-- [ ] 1.6 Generar `libs/contracts`, `libs/db`, `libs/sla-engine`, `libs/ui`
-- [ ] 1.7 Etiquetar cada proyecto (`scope:*`, `type:*`) en su `project.json`
+- [x] 1.1 `create-nx-workspace` con preset integrado (TypeScript, sin framework por defecto)
+- [x] 1.2 Generar `apps/api` (NestJS) y configurar el adaptador Fastify
+- [x] 1.3 Generar `apps/worker` como aplicación NestJS standalone (sin HTTP)
+- [x] 1.4 Generar `apps/agent-console` (Angular 21, standalone, zoneless)
+- [x] 1.5 Generar `apps/widget` (Angular 21, standalone, zoneless, sin PrimeNG)
+- [x] 1.6 Generar `libs/contracts`, `libs/db`, `libs/sla-engine`, `libs/ui`
+- [x] 1.7 Etiquetar cada proyecto (`scope:*`, `type:*`) en su `project.json`
 
 ## 2. Fronteras de dependencia
-- [ ] 2.1 Configurar `@nx/enforce-module-boundaries` con las reglas de `project.md`
-- [ ] 2.2 Test de humo: un import ilegal (ej. `apps/agent-console` importando `libs/db`) debe fallar el lint
+- [x] 2.1 Configurar `@nx/enforce-module-boundaries` con las reglas de `project.md`
+- [x] 2.2 Test de humo: un import ilegal (ej. `apps/agent-console` importando `libs/db`) debe fallar el lint
 
 ## 3. Datos y configuración
 - [ ] 3.1 `docker-compose.yml` local con PostgreSQL 16 y Valkey, con healthchecks

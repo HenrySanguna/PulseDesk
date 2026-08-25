@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./libs/contracts"
+    },
+    {
+      "path": "./libs/db"
+    },
+    {
+      "path": "./libs/sla-engine"
+    },
+    {
+      "path": "./apps/api"
+    },
+    {
+      "path": "./apps/worker"
+    },
+    {
+      "path": "./apps/agent-console"
+    },
+    {
+      "path": "./apps/widget"
+    },
+    {
+      "path": "./libs/ui"
+    }
+  ],
+  "compilerOptions": {}
+}
