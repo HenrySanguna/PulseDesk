@@ -4,6 +4,7 @@
   "license": "MIT",
   "scripts": {},
   "private": true,
+  "packageManager": "pnpm@10.18.0",
   "devDependencies": {
     "@angular-devkit/core": "~22.0.4",
     "@angular-devkit/schematics": "~22.0.4",
@@ -42,7 +43,6 @@
     "webpack-cli": "^7.0.0",
     "webpack-dev-server": "^5.2.1"
   },
-  "workspaces": ["libs/*", "apps/*"],
   "dependencies": {
     "@angular/common": "~22.0.4",
     "@angular/compiler": "~22.0.4",
@@ -52,7 +52,7 @@
     "@angular/router": "~22.0.4",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/platform-fastify": "^11.0.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "~7.8.0"
   }
