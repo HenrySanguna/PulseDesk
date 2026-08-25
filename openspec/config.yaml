@@ -1,0 +1,41 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Nx monorepo, Angular 21 (standalone/zoneless/Signals) + PrimeNG + @ngrx/signals,
+  NestJS 11 sobre Fastify, Prisma 7 + PostgreSQL 16, tiempo real hibrido (SSE + ws nativo),
+  BullMQ sobre Valkey.
+  Arquitectura: apps/agent-console, apps/widget, apps/api, apps/worker; libs/contracts,
+  libs/db, libs/sla-engine, libs/ui. Fronteras de dependencia via @nx/enforce-module-boundaries.
+  Testing: Vitest (unitario), Testcontainers (integracion, Postgres+Valkey reales), Playwright (E2E).
+  Estilo: TypeScript estricto sin any/@ts-ignore; $queryRaw solo via template tag; server.emit()
+  global prohibido en el gateway ws; jobs de BullMQ idempotentes; bloqueo optimista manual con
+  columna version en SlaClock.
+
+rules:
+  proposal:
+    - Respetar el stack no negociable de openspec/project.md; cualquier desviacion requiere
+      justificacion explicita y propuesta de excepcion
+    - Declarar coste si algo excede los tiers gratuitos (restriccion de coste cero)
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document architecture decisions with rationale
+    - Explicar por que se elige un mecanismo distinto al usado en CollabForge cuando aplique
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Todo codigo con logica de negocio real incluye su test unitario en la misma tarea
+  apply:
+    guidelines:
+      - Follow existing code patterns once apps/libs exist
+      - libs/sla-engine requiere cobertura de ramas al 100% (logica pura, sin I/O)
+      - Todo job de BullMQ necesita test de idempotencia
+    tdd: false           # No hay código ni test runner aún; revisar tras 00-bootstrap-monorepo
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
