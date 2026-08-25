@@ -1,0 +1,17 @@
+// Minimal Prisma schema for the bootstrap phase.
+// Domain models are added incrementally by later changes; this file only
+// wires the datasource and client generator so `libs/db` compiles and the
+// initial migration (citext extension) has something to attach to.
+//
+// `prismaSchemaFolder` (GA since Prisma 6.7) lets future changes split
+// domain models into sibling `.prisma` files under this same directory
+// without touching this file.
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../../src/generated"
+}

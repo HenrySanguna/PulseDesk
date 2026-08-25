@@ -5,6 +5,13 @@ dist
 tmp
 out-tsc
 
+# environment secrets (see .env.example for required keys)
+.env
+.env.local
+
+# generated Prisma client (regenerate with `npx prisma generate`)
+libs/db/src/generated
+
 # dependencies
 node_modules
 
