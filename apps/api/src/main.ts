@@ -22,7 +22,10 @@ async function bootstrap() {
     new FastifyAdapter(),
   );
   const globalPrefix = 'api';
-  app.setGlobalPrefix(globalPrefix);
+  // /health must stay unprefixed — it's the deployment health-check surface
+  // (Fly.io, uptime probes) and the observability spec defines it as
+  // `GET /health`, not `GET /api/health`.
+  app.setGlobalPrefix(globalPrefix, { exclude: ['health'] });
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
   Logger.log(
