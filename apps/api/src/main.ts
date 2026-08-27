@@ -4,12 +4,13 @@
  */
 
 import { parseEnv } from '@pulsedesk/contracts';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
+import fastifyCookie from '@fastify/cookie';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
@@ -20,6 +21,16 @@ async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
+  );
+  // Required for AgentSessionGuard to read the httpOnly `pd_session`
+  // cookie and for /auth/login to set it.
+  await app.register(fastifyCookie);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
   );
   const globalPrefix = 'api';
   // /health must stay unprefixed — it's the deployment health-check surface

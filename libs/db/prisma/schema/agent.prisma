@@ -1,0 +1,32 @@
+// Agent identity and authorization. See 02-add-dual-auth design.md — agent
+// sessions are opaque (Valkey-backed), never JWT, so this model has no
+// session/token fields of its own; those live entirely in Valkey.
+
+enum AgentRole {
+  AGENT
+  SUPERVISOR
+  ADMIN
+}
+
+enum AgentAvailability {
+  ONLINE
+  AWAY
+  OFFLINE
+}
+
+model Agent {
+  id           String            @id @default(uuid())
+  // citext: case-insensitive email lookups/uniqueness without app-level
+  // lower-casing, per openspec/project.md ("citext ya usado para campos
+  // tipo email").
+  email        String            @unique @db.Citext
+  // NEVER select/return this field outside libs/db or apps/api/src/auth —
+  // enforced by the `no-restricted-syntax` ESLint rule in eslint.config.mjs.
+  passwordHash String
+  role         AgentRole         @default(AGENT)
+  availability AgentAvailability @default(OFFLINE)
+  maxCapacity  Int               @default(5)
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}

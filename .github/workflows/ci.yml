@@ -65,6 +65,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://pulsedesk:pulsedesk@localhost:5432/pulsedesk?schema=public
       REDIS_URL: redis://localhost:6379
+      WIDGET_JWT_SECRET: ci-only-widget-jwt-secret-change-me-please-32chars
     steps:
       - uses: actions/checkout@v4
         with:

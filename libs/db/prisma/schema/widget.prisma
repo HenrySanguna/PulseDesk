@@ -1,0 +1,22 @@
+// Minimal Customer/Conversation shape needed for the widget's dual-auth
+// flow (POST /widget/conversations). See 02-add-dual-auth design.md.
+// Message/ticket domain models are out of scope for this change.
+
+model Customer {
+  id            String         @id @default(uuid())
+  // Anonymous client-generated identifier (e.g. persisted in the widget's
+  // localStorage) used to recognize a returning visitor across page loads
+  // without any credential.
+  sessionId     String         @unique
+  createdAt     DateTime       @default(now())
+  conversations Conversation[]
+}
+
+model Conversation {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}

@@ -54,4 +54,27 @@ export default [
     // Override or add rules here
     rules: {},
   },
+  {
+    // `Agent.passwordHash` must never be referenced outside `libs/db` (its
+    // owning data layer) or `apps/api/src/auth` (the only module allowed to
+    // verify it). Every other project overrides this back off for its own
+    // allowed subtree — see libs/db/eslint.config.mjs and
+    // apps/api/eslint.config.mjs.
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "Identifier[name='passwordHash']",
+          message:
+            'passwordHash must not be referenced outside libs/db or apps/api/src/auth. Use the PublicAgent projection (or AGENT_PUBLIC_SELECT) instead.',
+        },
+        {
+          selector: "Literal[value='passwordHash']",
+          message:
+            'passwordHash must not be referenced outside libs/db or apps/api/src/auth. Use the PublicAgent projection (or AGENT_PUBLIC_SELECT) instead.',
+        },
+      ],
+    },
+  },
 ];
