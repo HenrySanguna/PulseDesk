@@ -20,16 +20,16 @@
 - [x] 3.4 Configuración validada con Zod/class-validator en `apps/api` y `apps/worker`: el proceso no arranca sin `DATABASE_URL`, `REDIS_URL` y los secretos mínimos
 
 ## 4. Observabilidad mínima
-- [ ] 4.1 Endpoint `/health` en `apps/api`: estado de Postgres, estado de Valkey, `commit` (SHA inyectado en build), `contractsVersion`
-- [ ] 4.2 Latido del worker: escribe timestamp en Valkey cada 15s; `/health` lo expone
+- [x] 4.1 Endpoint `/health` en `apps/api`: estado de Postgres, estado de Valkey, `commit` (SHA inyectado en build), `contractsVersion` — implementado en `fac6b40`; SHA inyectado vía `ARG GIT_SHA` en el Dockerfile + `--build-arg` en `release.yml` (5.3/5.5), verificado end-to-end
+- [x] 4.2 Latido del worker: escribe timestamp en Valkey cada 15s; `/health` lo expone
 
 ## 5. CI/CD
-- [ ] 5.1 `ci.yml` con job `affected` (`nx show projects --affected`) usando `fetch-depth: 0` y `nrwl/nx-set-shas`
-- [ ] 5.2 Jobs `lint-and-test` (con servicios Postgres + Valkey) y `e2e` condicionados a los proyectos afectados
-- [ ] 5.3 Dockerfile multi-stage de imagen única (build de `api` y `worker`, runtime no-root)
-- [ ] 5.4 `fly.toml` con dos process groups (`api`, `worker`); `worker` con `min_machines_running = 1`
-- [ ] 5.5 `release.yml`: despliegue a Fly + verificación de SHA en `/health` + verificación de latido del worker
-- [ ] 5.6 Despliegue de `agent-console` y `widget` a Cloudflare Pages (dos proyectos de Pages distintos)
+- [x] 5.1 `ci.yml` con job `affected` (`nx show projects --affected`) usando `fetch-depth: 0` y `nrwl/nx-set-shas`
+- [x] 5.2 Jobs `lint-and-test` (con servicios Postgres + Valkey) y `e2e` condicionados a los proyectos afectados
+- [x] 5.3 Dockerfile multi-stage de imagen única (build de `api` y `worker`, runtime no-root) — verificado con build+prune+install aislado+boot real de ambas apps
+- [x] 5.4 `fly.toml` con dos process groups (`api`, `worker`) — `worker` sin `[http_service]` (patrón oficial Fly para procesos sin puerto: nunca autostopea sin necesitar `min_machines_running`, ver nota de sesión)
+- [x] 5.5 `release.yml`: despliegue a Fly + verificación de SHA en `/health` (cubre latido del worker también, ya que `/health` devuelve 503 si el heartbeat está stale)
+- [x] 5.6 Despliegue de `agent-console` y `widget` a Cloudflare Pages (dos proyectos de Pages distintos), condicionado a affected
 
 ## Definición de terminado
 - [ ] Un push a `main` despliega `api` y `worker` en Fly, ambos frontends en Pages

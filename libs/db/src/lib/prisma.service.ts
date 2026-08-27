@@ -1,4 +1,5 @@
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/client.js';
 
 /**
@@ -13,6 +14,10 @@ import { PrismaClient } from '../generated/client.js';
  */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
+  constructor() {
+    super({ adapter: new PrismaPg(process.env['DATABASE_URL'] as string) });
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
   }

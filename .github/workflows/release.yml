@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  deployments: write
+
+env:
+  NODE_VERSION: 24
+  FLY_APP_HOSTNAME: pulsedesk.fly.dev
+
+jobs:
+  affected:
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.affected.outputs.projects }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: nrwl/nx-set-shas@v4
+
+      - id: affected
+        run: echo "projects=$(pnpm nx show projects --affected --json)" >> "$GITHUB_OUTPUT"
+
+  deploy-backend:
+    needs: affected
+    if: contains(fromJson(needs.affected.outputs.projects), 'api') || contains(fromJson(needs.affected.outputs.projects), 'worker')
+    runs-on: ubuntu-latest
+    concurrency: fly-deploy-pulsedesk
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - run: flyctl deploy --remote-only --build-arg GIT_SHA=${{ github.sha }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Verify deployed commit SHA on /health
+        run: |
+          for i in $(seq 1 10); do
+            response=$(curl -s "https://${FLY_APP_HOSTNAME}/health" || true)
+            commit=$(echo "$response" | jq -r '.commit // empty')
+            if [ "$commit" = "${{ github.sha }}" ]; then
+              echo "Verified /health commit matches ${{ github.sha }}"
+              exit 0
+            fi
+            echo "Attempt $i: commit=$commit, retrying..."
+            sleep 5
+          done
+          echo "::error::/health never reported commit ${{ github.sha }}"
+          exit 1
+
+  deploy-agent-console:
+    needs: affected
+    if: contains(fromJson(needs.affected.outputs.projects), 'agent-console')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm nx build agent-console
+
+      - uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: pulsedesk-agent-console
+          directory: dist/apps/agent-console/browser
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-widget:
+    needs: affected
+    if: contains(fromJson(needs.affected.outputs.projects), 'widget')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm nx build widget
+
+      - uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: pulsedesk-widget
+          directory: dist/apps/widget/browser
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
