@@ -10,12 +10,12 @@ El sistema SHALL calcular el número de minutos laborables transcurridos entre d
 
 #### Scenario: Instantes que abarcan una noche
 - **GIVEN** el mismo calendario
-- **WHEN** se calculan los minutos laborables entre las 17:00 del lunes y las 10:00 del martes
+- **WHEN** se calculan los minutos laborables entre las 17:00 del lunes y las 08:00 del martes (antes de apertura)
 - **THEN** el resultado es 60 minutos (17:00–18:00), sin contar las horas nocturnas fuera de jornada
 
 #### Scenario: Instantes que abarcan un fin de semana
 - **GIVEN** el mismo calendario
-- **WHEN** se calculan los minutos laborables entre las 17:00 del viernes y las 10:00 del lunes
+- **WHEN** se calculan los minutos laborables entre las 17:00 del viernes y las 08:00 del lunes (antes de apertura)
 - **THEN** el resultado es 60 minutos, sin contar sábado ni domingo
 
 #### Scenario: Instantes que abarcan un festivo
@@ -34,7 +34,7 @@ El sistema SHALL calcular el instante resultante de sumar N minutos laborables a
 #### Scenario: Suma que cruza el fin de semana
 - **GIVEN** el mismo calendario
 - **WHEN** se suman 4 horas laborables (240 minutos) a las 17:00 de un viernes
-- **THEN** el resultado es las 13:00 del lunes siguiente (60 minutos el viernes + 180 minutos el lunes)
+- **THEN** el resultado es las 12:00 del lunes siguiente (60 minutos el viernes + 180 minutos el lunes)
 
 #### Scenario: Inicio fuera de horario laboral
 - **GIVEN** el mismo calendario

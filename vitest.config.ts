@@ -2,8 +2,9 @@ import { defineConfig } from 'vitest/config';
 
 /**
  * Root Vitest config for backend unit tests (`apps/api`, `apps/worker`,
- * `libs/contracts`, `libs/db`). Angular apps (`agent-console`, `widget`) use
- * `@angular/build:unit-test` instead and are intentionally excluded here.
+ * `libs/contracts`, `libs/db`, `libs/sla-engine`). Angular apps
+ * (`agent-console`, `widget`) use `@angular/build:unit-test` instead and are
+ * intentionally excluded here.
  */
 export default defineConfig({
   test: {
@@ -13,7 +14,12 @@ export default defineConfig({
       'apps/worker/src/**/*.spec.ts',
       'libs/contracts/src/**/*.spec.ts',
       'libs/db/src/**/*.spec.ts',
+      'libs/sla-engine/src/**/*.spec.ts',
     ],
     passWithNoTests: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text'],
+    },
   },
 });
