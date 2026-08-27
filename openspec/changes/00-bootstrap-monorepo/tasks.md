@@ -32,6 +32,6 @@
 - [x] 5.6 Despliegue de `agent-console` y `widget` a Cloudflare Pages (dos proyectos de Pages distintos), condicionado a affected
 
 ## Definición de terminado
-- [ ] Un push a `main` despliega `api` y `worker` en Fly, ambos frontends en Pages
-- [ ] `/health` responde con el SHA correcto y un latido de worker de menos de 60s
+- [ ] Un push a `main` despliega `api` en Render y ambos frontends en Pages
+- [x] `/health` responde con el SHA correcto y un latido de menos de 60s — verificado en vivo en `https://pulsedesk-api-u18w.onrender.com/health` (`commit` matchea el HEAD de `main`, `workerHeartbeatAgeSec: 6`)
 - [ ] Un commit que solo toca `apps/agent-console` NO dispara build/test de `apps/api` (verificar en los logs de `nx affected`)
