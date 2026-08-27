@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   computeHeartbeatAgeSec,
   getContractsVersion,
@@ -26,6 +26,8 @@ type ValkeyHealthClient = Pick<Redis, 'ping' | 'get'>;
 
 @Injectable()
 export class HealthService {
+  private readonly logger = new Logger(HealthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(VALKEY_CLIENT) private readonly valkey: ValkeyHealthClient,
@@ -44,9 +46,23 @@ export class HealthService {
       db,
       valkey,
       commit: process.env['RENDER_GIT_COMMIT'] ?? 'dev',
-      contractsVersion: getContractsVersion(),
+      contractsVersion: this.readContractsVersion(),
       workerHeartbeatAgeSec,
     };
+  }
+
+  /** Never throws — an unresolvable `@pulsedesk/contracts/package.json`
+   * (e.g. a pruned deploy image with a broken workspace symlink) must not
+   * take down `/health` itself. */
+  private readContractsVersion(): string {
+    try {
+      return getContractsVersion();
+    } catch (err) {
+      this.logger.warn(
+        `Failed to resolve contracts version: ${(err as Error).message}`,
+      );
+      return 'unknown';
+    }
   }
 
   /** Per the observability spec: healthy requires Postgres up, Valkey up,

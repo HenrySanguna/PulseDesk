@@ -1,7 +1,17 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '@pulsedesk/db';
 import { WORKER_HEARTBEAT_KEY } from '@pulsedesk/contracts';
 import { HealthService } from './health.service.js';
+
+vi.mock('@pulsedesk/contracts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@pulsedesk/contracts')>();
+  return {
+    ...actual,
+    getContractsVersion: () => {
+      throw new Error('Cannot find module (simulated broken workspace symlink)');
+    },
+  };
+});
 
 function makePrisma(queryRawImpl: () => Promise<unknown>): PrismaService {
   return { $queryRaw: queryRawImpl } as unknown as PrismaService;
@@ -99,6 +109,20 @@ describe('HealthService', () => {
 
     expect(report.workerHeartbeatAgeSec).toBeGreaterThanOrEqual(61);
     expect(service.isHealthy(report)).toBe(false);
+  });
+
+  it('does not throw when the contracts version cannot be resolved', async () => {
+    const prisma = makePrisma(() => Promise.resolve([]));
+    const valkey = makeValkey(
+      () => Promise.resolve('PONG'),
+      () => Promise.resolve(null),
+    );
+    const service = new HealthService(prisma, valkey);
+
+    const report = await service.check();
+
+    expect(report.contractsVersion).toBe('unknown');
+    expect(report.db).toBe('ok');
   });
 
   it('treats a missing heartbeat as unhealthy', async () => {
