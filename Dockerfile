@@ -23,3 +23,4 @@ COPY --from=build /workspace/apps/api/dist ./apps/api
 RUN pnpm --dir apps/api install --prod --frozen-lockfile --ignore-scripts \
  && chown -R node:node /app
 USER node
+CMD ["node", "apps/api/main.js"]
