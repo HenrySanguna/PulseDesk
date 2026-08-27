@@ -6,6 +6,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Reflector } from '@nestjs/core';
+import { WIDGET_CUSTOMER_SCOPED_KEY } from './widget-customer-scoped.decorator.js';
 import type {
   WidgetAuthenticatedRequest,
   WidgetTokenPayload,
@@ -19,10 +21,19 @@ const BEARER_PREFIX = 'Bearer ';
  * `:conversationId` route param being accessed. A token issued for
  * conversation A must be rejected on conversation B's resources, even
  * though both may belong to the same customer.
+ *
+ * A route with no `:conversationId` param to check against fails
+ * closed unless explicitly marked `@WidgetCustomerScoped()` — this
+ * makes "authorize by customerId only" an intentional, reviewed
+ * per-route decision instead of something a future route could
+ * silently inherit just by omitting the param.
  */
 @Injectable()
 export class WidgetTokenGuard implements CanActivate {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context
@@ -47,13 +58,22 @@ export class WidgetTokenGuard implements CanActivate {
 
     const params = request.params as Record<string, string> | undefined;
     const requestedConversationId = params?.['conversationId'];
-    if (
-      requestedConversationId &&
-      payload.conversationId !== requestedConversationId
-    ) {
-      throw new ForbiddenException(
-        'Widget token is not scoped to this conversation',
+    if (requestedConversationId) {
+      if (payload.conversationId !== requestedConversationId) {
+        throw new ForbiddenException(
+          'Widget token is not scoped to this conversation',
+        );
+      }
+    } else {
+      const isCustomerScoped = this.reflector.getAllAndOverride<boolean>(
+        WIDGET_CUSTOMER_SCOPED_KEY,
+        [context.getHandler(), context.getClass()],
       );
+      if (!isCustomerScoped) {
+        throw new ForbiddenException(
+          'Route has no :conversationId to scope this widget token to, and is not marked @WidgetCustomerScoped()',
+        );
+      }
     }
 
     request.widgetToken = payload;

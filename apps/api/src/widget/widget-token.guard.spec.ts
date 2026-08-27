@@ -7,17 +7,27 @@ import type { WidgetAuthenticatedRequest } from './widget-token.types.js';
 
 const JWT_SECRET = 'test-widget-jwt-secret-not-for-production-use';
 
+/** Minimal `Reflector` double — real `@nestjs/core` `Reflector` reads
+ * metadata off real decorated class/handler references, which these
+ * synthetic `ExecutionContext`s don't have. `customerScoped` controls
+ * what `@WidgetCustomerScoped()` would have set for the route under test. */
+function fakeReflector(customerScoped: boolean) {
+  return { getAllAndOverride: () => customerScoped } as unknown as import('@nestjs/core').Reflector;
+}
+
 function makeContext(request: Partial<WidgetAuthenticatedRequest>): ExecutionContext {
   return {
     switchToHttp: () => ({
       getRequest: () => request as WidgetAuthenticatedRequest,
     }),
+    getHandler: () => undefined,
+    getClass: () => undefined,
   } as unknown as ExecutionContext;
 }
 
 describe('WidgetTokenGuard', () => {
   const jwt = new JwtService({ secret: JWT_SECRET });
-  const guard = new WidgetTokenGuard(jwt);
+  const guard = new WidgetTokenGuard(jwt, fakeReflector(false));
 
   it('rejects a request with no Authorization header', async () => {
     const context = makeContext({ headers: {}, params: {} });
@@ -85,5 +95,37 @@ describe('WidgetTokenGuard', () => {
     await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+
+  it('fails closed on a route with no :conversationId param and no @WidgetCustomerScoped() marker', async () => {
+    const notCustomerScopedGuard = new WidgetTokenGuard(jwt, fakeReflector(false));
+    const token = await jwt.signAsync({
+      conversationId: 'conversation-A',
+      customerId: 'customer-1',
+    });
+    const context = makeContext({
+      headers: { authorization: `Bearer ${token}` },
+      params: {},
+    });
+
+    await expect(
+      notCustomerScopedGuard.canActivate(context),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('authorizes by customerId on a route with no :conversationId param that IS marked @WidgetCustomerScoped()', async () => {
+    const customerScopedGuard = new WidgetTokenGuard(jwt, fakeReflector(true));
+    const token = await jwt.signAsync({
+      conversationId: 'conversation-A',
+      customerId: 'customer-1',
+    });
+    const request: Partial<WidgetAuthenticatedRequest> = {
+      headers: { authorization: `Bearer ${token}` },
+      params: {},
+    };
+    const context = makeContext(request);
+
+    await expect(customerScopedGuard.canActivate(context)).resolves.toBe(true);
+    expect(request.widgetToken).toMatchObject({ customerId: 'customer-1' });
   });
 });

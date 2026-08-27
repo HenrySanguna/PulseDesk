@@ -18,5 +18,8 @@ import { WIDGET_TOKEN_TTL } from './widget.constants.js';
   ],
   controllers: [WidgetController],
   providers: [PrismaService, WidgetService, WidgetTokenGuard],
+  // TicketsModule reuses WidgetTokenGuard for the customer-facing half of
+  // `GET /tickets/:id` (see TicketRequesterGuard).
+  exports: [WidgetTokenGuard],
 })
 export class WidgetModule {}

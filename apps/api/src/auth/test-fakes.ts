@@ -1,3 +1,4 @@
+import type { PrismaService } from '@pulsedesk/db';
 import type { SessionsValkeyClient } from './sessions.service.js';
 
 /** In-memory fake matching {@link SessionsValkeyClient} — enough to unit
@@ -37,4 +38,21 @@ export function createFakeValkey(): SessionsValkeyClient {
       return Array.from(sets.get(key) ?? []);
     },
   };
+}
+
+/**
+ * Creates a real `Agent` row for integration tests OUTSIDE this module
+ * (e.g. `apps/api/src/tickets`) that need a real agent to satisfy a
+ * foreign key, but never verify its password. The actual `passwordHash`
+ * field access is kept in this file — the one apps/api subtree the
+ * `no-restricted-syntax` ESLint rule allows — so callers never need to
+ * reference the identifier directly.
+ */
+export async function seedTestAgent(
+  prisma: Pick<PrismaService, 'agent'>,
+  data: { id: string; email: string },
+): Promise<void> {
+  await prisma.agent.create({
+    data: { ...data, passwordHash: 'irrelevant-for-integration-tests' },
+  });
 }

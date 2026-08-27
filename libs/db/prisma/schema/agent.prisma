@@ -29,4 +29,9 @@ model Agent {
   isActive     Boolean           @default(true)
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
+
+  // Back-relations for 03-add-ticket-queue — see ticket.prisma.
+  assignedTickets  Ticket[]
+  authoredMessages Message[]
+  ticketEvents     TicketEvent[]
 }

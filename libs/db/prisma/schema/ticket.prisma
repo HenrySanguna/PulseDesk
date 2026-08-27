@@ -1,0 +1,101 @@
+// Ticket domain: the ticket queue, its explicit state machine, internal
+// notes, and the SLA policy association. The policy is only linked here —
+// its clock does not run yet (see 03-add-ticket-queue proposal.md, "Out of
+// scope": SlaClock/auto-expiry land in Phase 4).
+
+enum TicketStatus {
+  NEW
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+// Declaration order IS the priority order Postgres sorts by — NOT
+// alphabetical. The unassigned queue relies on `ORDER BY priority DESC`
+// matching this declaration order (LOW < NORMAL < HIGH < URGENT).
+// Reordering this enum silently flips queue priority with no compile
+// error — see design.md "Riesgo: orden de un enum en Prisma" and the
+// dedicated regression test in apps/api/src/tickets/tickets.integration.spec.ts.
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum MessageVisibility {
+  PUBLIC
+  INTERNAL
+}
+
+enum TicketEventType {
+  CREATED
+  ASSIGNED
+  STATUS_CHANGED
+  MESSAGE_ADDED
+}
+
+model Ticket {
+  id          String         @id @default(uuid())
+  subject     String
+  status      TicketStatus   @default(NEW)
+  priority    TicketPriority @default(NORMAL)
+  customerId  String
+  customer    Customer       @relation(fields: [customerId], references: [id])
+  assigneeId  String?
+  assignee    Agent?         @relation(fields: [assigneeId], references: [id])
+  slaPolicyId String?
+  slaPolicy   SlaPolicy?     @relation(fields: [slaPolicyId], references: [id])
+  messages    Message[]
+  events      TicketEvent[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // The partial index on the unassigned queue (assigneeId IS NULL AND
+  // status = 'NEW') cannot be expressed by Prisma's schema DSL — it is
+  // hand-added to the generated migration's SQL file instead. See
+  // libs/db/prisma/migrations/<timestamp>_add_ticket_queue/migration.sql.
+  @@index([assigneeId, status])
+  @@index([customerId])
+}
+
+model Message {
+  id            String            @id @default(uuid())
+  ticketId      String
+  ticket        Ticket            @relation(fields: [ticketId], references: [id])
+  authorAgentId String?
+  authorAgent   Agent?            @relation(fields: [authorAgentId], references: [id])
+  visibility    MessageVisibility @default(PUBLIC)
+  body          String
+  // Idempotency key for widget resends — unused by this change's REST-only
+  // surface (real-time transport lands in Phase 5), added now so this
+  // table's migration doesn't need to be revisited later.
+  clientMessageId String?
+  createdAt        DateTime @default(now())
+
+  @@unique([ticketId, clientMessageId])
+  @@index([ticketId])
+}
+
+model TicketEvent {
+  id           String          @id @default(uuid())
+  ticketId     String
+  ticket       Ticket          @relation(fields: [ticketId], references: [id])
+  type         TicketEventType
+  payload      Json?
+  actorAgentId String?
+  actorAgent   Agent?          @relation(fields: [actorAgentId], references: [id])
+  createdAt    DateTime        @default(now())
+
+  @@index([ticketId])
+}
+
+model SlaPolicy {
+  id                   String   @id @default(uuid())
+  name                 String
+  firstResponseMinutes Int
+  resolutionMinutes    Int
+  tickets              Ticket[]
+  createdAt            DateTime @default(now())
+}

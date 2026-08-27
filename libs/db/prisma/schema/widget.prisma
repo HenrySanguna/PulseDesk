@@ -10,6 +10,8 @@ model Customer {
   sessionId     String         @unique
   createdAt     DateTime       @default(now())
   conversations Conversation[]
+  // Back-relation for 03-add-ticket-queue — see ticket.prisma.
+  tickets       Ticket[]
 }
 
 model Conversation {
