@@ -79,6 +79,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm exec prisma generate
+
       - uses: nrwl/nx-set-shas@v4
 
       - run: pnpm nx affected -t lint test --parallel=3
