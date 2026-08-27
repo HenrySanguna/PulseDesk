@@ -6,6 +6,11 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
+# prisma.config.ts requires DATABASE_URL to be resolvable to load at all,
+# even for `generate` (schema codegen, no real DB connection needed). Real
+# platform secrets aren't available at Docker build time, so a syntactically
+# valid placeholder is enough — this never carries into the runtime stage.
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm exec prisma generate
 RUN pnpm nx run-many -t build,prune -p api
 
