@@ -3,14 +3,14 @@
 ## Purpose
 
 Defines the minimum health-check surface needed to verify a deployment: `/health` on `apps/api`
-and a worker heartbeat written to Valkey.
+and a heartbeat written to Valkey by `apps/api`'s in-process `HeartbeatService`.
 
 ## Requirements
 
 ### Requirement: Health Endpoint Contract
 
 `apps/api` MUST expose a `GET /health` endpoint returning JSON with Postgres status, Valkey
-status, the deployed commit SHA, and the age of the last worker heartbeat.
+status, the deployed commit SHA, and the age of the last heartbeat.
 
 #### Scenario: Healthy dependencies report ok
 
@@ -30,25 +30,25 @@ status, the deployed commit SHA, and the age of the last worker heartbeat.
 - WHEN a client calls `GET /health`
 - THEN the response body MUST include a `commit` field matching the deployed SHA
 
-#### Scenario: Response includes worker heartbeat age
+#### Scenario: Response includes heartbeat age
 
-- GIVEN the worker has written a heartbeat timestamp to Valkey
+- GIVEN `apps/api`'s `HeartbeatService` has written a heartbeat timestamp to Valkey
 - WHEN a client calls `GET /health`
 - THEN the response body MUST include the heartbeat age in seconds
 
-### Requirement: Worker Heartbeat
+### Requirement: In-Process Heartbeat
 
-`apps/worker` MUST write a timestamp to Valkey at a fixed interval of no more than 15 seconds
-while the process is running.
+`apps/api` MUST write a timestamp to Valkey, via an in-process `HeartbeatService`, at a fixed
+interval of no more than 15 seconds while the process is running.
 
 #### Scenario: Heartbeat is written periodically
 
-- GIVEN `apps/worker` has been running for at least 30 seconds
+- GIVEN `apps/api` has been running for at least 30 seconds
 - WHEN the Valkey heartbeat key is inspected
 - THEN its timestamp MUST be no older than 15 seconds
 
 #### Scenario: Stale heartbeat is surfaced as unhealthy
 
-- GIVEN the worker process has stopped writing heartbeats
+- GIVEN `apps/api`'s `HeartbeatService` has stopped writing heartbeats
 - WHEN `GET /health` is called and the heartbeat age exceeds 60 seconds
-- THEN the response MUST return a non-200 status reflecting the stale worker
+- THEN the response MUST return a non-200 status reflecting the stale heartbeat

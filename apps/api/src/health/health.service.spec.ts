@@ -15,13 +15,13 @@ function makeValkey(
 }
 
 describe('HealthService', () => {
-  const originalGitSha = process.env['GIT_SHA'];
+  const originalGitSha = process.env['RENDER_GIT_COMMIT'];
 
   beforeEach(() => {
     if (originalGitSha === undefined) {
-      delete process.env['GIT_SHA'];
+      delete process.env['RENDER_GIT_COMMIT'];
     } else {
-      process.env['GIT_SHA'] = originalGitSha;
+      process.env['RENDER_GIT_COMMIT'] = originalGitSha;
     }
   });
 
@@ -71,7 +71,7 @@ describe('HealthService', () => {
     expect(service.isHealthy(report)).toBe(false);
   });
 
-  it('includes the commit SHA from GIT_SHA, falling back to "dev"', async () => {
+  it('includes the commit SHA from RENDER_GIT_COMMIT, falling back to "dev"', async () => {
     const prisma = makePrisma(() => Promise.resolve([]));
     const valkey = makeValkey(
       () => Promise.resolve('PONG'),
@@ -79,10 +79,10 @@ describe('HealthService', () => {
     );
     const service = new HealthService(prisma, valkey);
 
-    delete process.env['GIT_SHA'];
+    delete process.env['RENDER_GIT_COMMIT'];
     expect((await service.check()).commit).toBe('dev');
 
-    process.env['GIT_SHA'] = 'abc1234';
+    process.env['RENDER_GIT_COMMIT'] = 'abc1234';
     expect((await service.check()).commit).toBe('abc1234');
   });
 

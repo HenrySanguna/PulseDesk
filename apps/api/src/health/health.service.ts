@@ -43,7 +43,7 @@ export class HealthService {
     return {
       db,
       valkey,
-      commit: process.env['GIT_SHA'] ?? 'dev',
+      commit: process.env['RENDER_GIT_COMMIT'] ?? 'dev',
       contractsVersion: getContractsVersion(),
       workerHeartbeatAgeSec,
     };

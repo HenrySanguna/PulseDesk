@@ -16,7 +16,7 @@ type HeartbeatValkeyClient = Pick<Redis, 'set'>;
 /**
  * Writes a timestamp to Valkey every {@link WORKER_HEARTBEAT_INTERVAL_MS}
  * (<=15s, per the observability spec) so `apps/api`'s `/health` endpoint can
- * detect a stalled or crashed worker.
+ * detect a stalled heartbeat.
  */
 @Injectable()
 export class HeartbeatService implements OnModuleInit, OnModuleDestroy {

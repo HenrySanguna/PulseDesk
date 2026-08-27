@@ -10,7 +10,8 @@ permissions:
 
 env:
   NODE_VERSION: 24
-  FLY_APP_HOSTNAME: pulsedesk.fly.dev
+  # Update if the Render service ends up with a different auto-assigned hostname.
+  RENDER_APP_HOSTNAME: pulsedesk-api.onrender.com
 
 jobs:
   affected:
@@ -38,29 +39,24 @@ jobs:
 
   deploy-backend:
     needs: affected
-    if: contains(fromJson(needs.affected.outputs.projects), 'api') || contains(fromJson(needs.affected.outputs.projects), 'worker')
+    if: contains(fromJson(needs.affected.outputs.projects), 'api')
     runs-on: ubuntu-latest
-    concurrency: fly-deploy-pulsedesk
+    concurrency: render-deploy-pulsedesk
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - run: flyctl deploy --remote-only --build-arg GIT_SHA=${{ github.sha }}
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Trigger Render deploy
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
 
       - name: Verify deployed commit SHA on /health
         run: |
-          for i in $(seq 1 10); do
-            response=$(curl -s "https://${FLY_APP_HOSTNAME}/health" || true)
+          for i in $(seq 1 20); do
+            response=$(curl -s "https://${RENDER_APP_HOSTNAME}/health" || true)
             commit=$(echo "$response" | jq -r '.commit // empty')
             if [ "$commit" = "${{ github.sha }}" ]; then
               echo "Verified /health commit matches ${{ github.sha }}"
               exit 0
             fi
             echo "Attempt $i: commit=$commit, retrying..."
-            sleep 5
+            sleep 10
           done
           echo "::error::/health never reported commit ${{ github.sha }}"
           exit 1

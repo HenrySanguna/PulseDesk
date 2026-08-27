@@ -3,7 +3,7 @@
 ## Purpose
 
 Defines the local Docker Compose stack, Prisma schema/migration setup, and startup environment
-validation that `apps/api` and `apps/worker` depend on before any domain logic exists.
+validation that `apps/api` depends on before any domain logic exists.
 
 ## Requirements
 
@@ -56,7 +56,7 @@ The workspace MUST configure Prisma with `prismaSchemaFolder`, generate the clie
 
 ### Requirement: Fail-Fast Environment Validation
 
-`apps/api` and `apps/worker` MUST validate required environment variables at startup and MUST
+`apps/api` MUST validate required environment variables at startup and MUST
 refuse to start the process if any required variable is missing or malformed.
 
 #### Scenario: Missing DATABASE_URL blocks startup
@@ -65,11 +65,11 @@ refuse to start the process if any required variable is missing or malformed.
 - WHEN `apps/api` attempts to bootstrap
 - THEN the process MUST exit with a non-zero code before accepting any connections
 
-#### Scenario: Missing REDIS_URL blocks worker startup
+#### Scenario: Missing REDIS_URL blocks startup
 
 - GIVEN `REDIS_URL` is unset
-- WHEN `apps/worker` attempts to bootstrap
-- THEN the process MUST exit with a non-zero code before starting any BullMQ consumer
+- WHEN `apps/api` attempts to bootstrap
+- THEN the process MUST exit with a non-zero code before accepting any connections
 
 #### Scenario: All required variables present allows startup
 

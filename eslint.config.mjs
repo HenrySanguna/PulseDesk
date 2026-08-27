@@ -26,12 +26,8 @@ export default [
               notDependOnLibsWithTags: ['type:data'],
             },
             {
-              // apps/api and apps/worker share backend libs, never each other.
+              // apps/api depends only on shared backend libs.
               sourceTag: 'scope:api',
-              onlyDependOnLibsWithTags: ['scope:shared'],
-            },
-            {
-              sourceTag: 'scope:worker',
               onlyDependOnLibsWithTags: ['scope:shared'],
             },
             {

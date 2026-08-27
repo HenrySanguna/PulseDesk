@@ -3,7 +3,7 @@
 ## Purpose
 
 Defines the GitHub Actions CI pipeline (`nx affected`-driven) and the release pipeline that
-builds a single Docker image for `api`+`worker` and deploys both frontends to Cloudflare Pages.
+builds a single Docker image for `api` and deploys both frontends to Cloudflare Pages.
 
 ## Requirements
 
@@ -16,7 +16,7 @@ base/head SHA resolution step, and MUST run lint/test/e2e jobs only for affected
 
 - GIVEN a commit only modifies files under `apps/agent-console`
 - WHEN the CI workflow runs
-- THEN the `api` and `worker` projects MUST NOT appear in the affected project list
+- THEN the `api` project MUST NOT appear in the affected project list
 
 #### Scenario: Shared lib change affects all consumers
 
@@ -32,14 +32,14 @@ base/head SHA resolution step, and MUST run lint/test/e2e jobs only for affected
 
 ### Requirement: Single-Image Backend Build
 
-The repository MUST provide a multi-stage Dockerfile that builds both `apps/api` and
-`apps/worker` into one image, running as a non-root user.
+The repository MUST provide a multi-stage Dockerfile that builds `apps/api` into one image,
+running as a non-root user.
 
-#### Scenario: One image serves both process groups
+#### Scenario: Image serves the api process
 
 - GIVEN the Docker image is built
 - WHEN inspecting the image contents
-- THEN it MUST contain runnable entrypoints for both the `api` and `worker` processes
+- THEN it MUST contain a runnable entrypoint for the `api` process
 
 #### Scenario: Container runs as non-root
 
@@ -47,26 +47,20 @@ The repository MUST provide a multi-stage Dockerfile that builds both `apps/api`
 - WHEN the container starts
 - THEN the running process MUST NOT be UID 0
 
-### Requirement: Fly.io Deployment with Two Process Groups
+### Requirement: Render Deployment via Deploy Hook
 
-The release pipeline MUST deploy the single image to Fly.io with two process groups, `api` and
-`worker`, where `worker` keeps at least one machine running at all times.
+The release pipeline MUST trigger a deploy of the single image to a Render web service by calling
+its Deploy Hook URL, gated by `nx affected` so it only fires when `api` is affected.
 
-#### Scenario: Both process groups deploy from one release
+#### Scenario: Deploy hook fires only when api is affected
 
-- GIVEN `fly deploy` runs against `fly.toml`
-- WHEN the deployment completes
-- THEN both the `api` and `worker` process groups MUST be running
-
-#### Scenario: Worker never scales to zero
-
-- GIVEN the `worker` process group configuration
-- WHEN Fly evaluates autoscaling
-- THEN `min_machines_running` for `worker` MUST be at least 1
+- GIVEN a release commit does not touch `apps/api` or any of its dependencies
+- WHEN the release pipeline runs
+- THEN the Render Deploy Hook MUST NOT be called
 
 #### Scenario: Post-deploy verification confirms live SHA
 
-- GIVEN a release has been deployed
+- GIVEN a release has triggered a Render deploy
 - WHEN the pipeline calls `GET /health` on the deployed api
 - THEN the returned `commit` field MUST match the SHA being released
 

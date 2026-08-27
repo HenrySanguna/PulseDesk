@@ -2,7 +2,9 @@
 
 ## Technical Approach
 
-Generate the Nx workspace with the integrated preset, add the eight projects empty, wire `@nx/enforce-module-boundaries` to the `scope:*`/`type:*` tags from `project.md`, configure Prisma (`prismaSchemaFolder`) and Docker Compose for local dev, expose `/health` as the only observable surface, and close the CI/CD loop (`nx affected` → single image → Fly.io two process groups + Cloudflare Pages ×2). Maps to specs: workspace-foundation, local-dev-infrastructure, observability, ci-cd-pipeline.
+Generate the Nx workspace with the integrated preset, add the eight projects empty, wire `@nx/enforce-module-boundaries` to the `scope:*`/`type:*` tags from `project.md`, configure Prisma (`prismaSchemaFolder`) and Docker Compose for local dev, expose `/health` as the only observable surface, and close the CI/CD loop (`nx affected` → single image → Render web service + Cloudflare Pages ×2). Maps to specs: workspace-foundation, local-dev-infrastructure, observability, ci-cd-pipeline.
+
+`apps/worker` was folded back into `apps/api` after bootstrap (see Open Questions): Fly.io turned out to have no real free tier, and a standalone always-on worker process doesn't fit any genuinely free host, so the heartbeat now runs as an in-process `setInterval` inside `apps/api`'s health module instead of a separate deployable.
 
 ## Architecture Decisions
 
@@ -14,18 +16,18 @@ Generate the Nx workspace with the integrated preset, add the eight projects emp
 | Env validation | `class-validator` vs Zod | Zod schema (`libs/contracts/src/env.ts`), parsed in `main.ts` before `NestFactory.create` | Zod parses synchronously with no DI container, required before Nest bootstraps; `class-validator` needs a class + `ValidationPipe`, both DI-bound |
 | `apps/api` HTTP adapter | Express vs Fastify | `@nestjs/platform-fastify`, via `NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter())` | Spec mandates Fastify; lower per-request overhead suits realtime/SSE support-desk load, and Nest supports it as a first-class adapter |
 | `/health` composition | Nest Terminus vs custom handler | Custom controller calling `PrismaService.$queryRaw` + Valkey `PING` + heartbeat read | Terminus abstraction is overkill for 2 checks + 1 heartbeat |
-| Backend image | Two Dockerfiles vs one multi-stage | One Dockerfile: shared `deps`+`build` stage, two runtime stages (`api`,`worker`) via `--target` | Spec requires one artifact, two entrypoints |
-| Fly process groups | Two Fly apps vs one app w/ `[processes]` | One `fly.toml`, `[processes] api=... worker=...` | Spec requires two process groups from one release |
+| Backend image | Two Dockerfiles vs one multi-stage | One Dockerfile: `deps`→`build`→one runtime stage (`api`) | Single backend deployable after the worker merge |
+| Backend hosting | Fly.io vs Render | Render free web service, deployed via GitHub Actions Deploy Hook (`RENDER_DEPLOY_HOOK_URL`) | Fly has no real free tier — only a 2h/7-day trial, then mandatory billing with no free cap (confirmed in Fly's own docs); Render's free web service gives 750 instance-hours/month, genuinely $0, over-limit suspends rather than bills |
 | Frontend hosting | One Pages project vs two | Two Cloudflare Pages projects (`pulsedesk-agent-console`, `pulsedesk-widget`) | Independent redeploy: agent-console change must not redeploy widget |
 
 `libs/contracts` lives in this workspace — backend/frontend type drift is caught at compile time.
 
 ## Data Flow
 
-    compose up ──→ Postgres+Valkey healthy ──┬──→ api main.ts: env.ts(Zod) → NestFactory.create<NestFastifyApplication>(new FastifyAdapter()) → PrismaService → GET /health
-                                              └──→ worker main.ts: env.ts(Zod) → setInterval ≤15s → SET heartbeat
+    compose up ──→ Postgres+Valkey healthy ──→ api main.ts: env.ts(Zod) → NestFactory.create<NestFastifyApplication>(new FastifyAdapter()) → PrismaService → GET /health
+                                                                        └──→ HeartbeatService (same process): setInterval ≤15s → SET heartbeat
 
-CI: push → `nx affected` lint/test/e2e (base via `nx-set-shas`) → on `main`: build single image (`--target api`/`worker` share base layers) → `fly deploy` (two process groups) → `/health` verifies `commit` SHA → Cloudflare Pages build per affected frontend.
+CI: push → `nx affected` lint/test/e2e (base via `nx-set-shas`) → on `main`: build single image (`api` only) → `curl` Render Deploy Hook → `/health` verifies `commit` (`RENDER_GIT_COMMIT`, auto-injected by Render) → Cloudflare Pages build per affected frontend.
 
 ## File Changes
 
@@ -36,15 +38,14 @@ CI: push → `nx affected` lint/test/e2e (base via `nx-set-shas`) → on `main`:
 | `eslint.config.mjs` (root) | Modify | `depConstraints` mapping scope/type rules from `project.md` |
 | `libs/contracts/src/env.ts` | Create | Zod schema + `parseEnv()` fail-fast helper shared by api/worker |
 | `apps/api/src/main.ts` | Create | `parseEnv()`, then `NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter())` |
-| `apps/worker/src/main.ts` | Create | `parseEnv()` before `NestFactory.create` (no HTTP surface, adapter choice N/A) |
 | `apps/api/src/health/health.controller.ts` | Create | `GET /health` aggregator |
+| `apps/api/src/health/heartbeat.service.ts` | Moved from `apps/worker` | In-process `setInterval` heartbeat, registered as a provider in `HealthModule` |
 | `libs/db/prisma/schema/*.prisma` | Create | `prismaSchemaFolder`, client output to `libs/db/src/generated` |
 | `libs/db/prisma/migrations/0001_init/migration.sql` | Create | `CREATE EXTENSION IF NOT EXISTS citext;` |
 | `docker-compose.yml` | Create | Postgres 16 + Valkey with healthchecks |
-| `Dockerfile` | Create | Multi-stage: `deps`→`build`→`api`/`worker` runtime, non-root `USER node` |
-| `fly.toml` | Create | `[processes]` api/worker, `worker.min_machines_running = 1` |
+| `Dockerfile` | Create | Multi-stage: `deps`→`build`→one `api` runtime stage, non-root `USER node` |
 | `.github/workflows/ci.yml` | Create | `nx affected`, `fetch-depth: 0`, `nx-set-shas` |
-| `.github/workflows/release.yml` | Create | Build image, `fly deploy`, `/health` check, Cloudflare Pages deploy ×2 |
+| `.github/workflows/release.yml` | Create | Build image, `curl` Render Deploy Hook, `/health` check, Cloudflare Pages deploy ×2 |
 
 ## Interfaces / Contracts
 
@@ -79,4 +80,4 @@ No migration required — first deployment. Initial Prisma migration only enable
 
 ## Open Questions
 
-- [ ] Confirm free-tier Fly.io machine limits comfortably cover `worker` `min_machines_running: 1` + `api` scale-to-zero under the zero-cost constraint.
+- [x] ~~Confirm free-tier Fly.io machine limits comfortably cover `worker` `min_machines_running: 1` + `api` scale-to-zero under the zero-cost constraint.~~ Resolved: Fly.io has no real free tier — only a 2h/7-day trial, then mandatory billing with no free cap. Switched backend hosting to Render's free web service and folded `apps/worker` into `apps/api` (see Architecture Decisions).

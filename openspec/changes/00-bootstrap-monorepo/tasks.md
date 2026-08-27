@@ -21,14 +21,14 @@
 
 ## 4. Observabilidad mínima
 - [x] 4.1 Endpoint `/health` en `apps/api`: estado de Postgres, estado de Valkey, `commit` (SHA inyectado en build), `contractsVersion` — implementado en `fac6b40`; SHA inyectado vía `ARG GIT_SHA` en el Dockerfile + `--build-arg` en `release.yml` (5.3/5.5), verificado end-to-end
-- [x] 4.2 Latido del worker: escribe timestamp en Valkey cada 15s; `/health` lo expone
+- [x] 4.2 Heartbeat: `HeartbeatService` dentro de `apps/api` (ya no proceso `worker` separado) escribe timestamp en Valkey cada 15s vía `setInterval`; `/health` lo expone
 
 ## 5. CI/CD
 - [x] 5.1 `ci.yml` con job `affected` (`nx show projects --affected`) usando `fetch-depth: 0` y `nrwl/nx-set-shas`
 - [x] 5.2 Jobs `lint-and-test` (con servicios Postgres + Valkey) y `e2e` condicionados a los proyectos afectados
-- [x] 5.3 Dockerfile multi-stage de imagen única (build de `api` y `worker`, runtime no-root) — verificado con build+prune+install aislado+boot real de ambas apps
-- [x] 5.4 `fly.toml` con dos process groups (`api`, `worker`) — `worker` sin `[http_service]` (patrón oficial Fly para procesos sin puerto: nunca autostopea sin necesitar `min_machines_running`, ver nota de sesión)
-- [x] 5.5 `release.yml`: despliegue a Fly + verificación de SHA en `/health` (cubre latido del worker también, ya que `/health` devuelve 503 si el heartbeat está stale)
+- [x] 5.3 Dockerfile multi-stage de imagen única, un solo runtime stage (`api`, ya no hay app `worker` separada), runtime no-root — verificado con build+prune+install aislado
+- [x] 5.4 Hosting: Render free web service (no Fly — Fly no tiene free tier real, solo trial de 2h/7 días y factura sin techo gratuito después). Servicio en Render creado manualmente por el usuario en el dashboard (root directory `.`, Dockerfile en la raíz, auto-deploy desactivado); repo solo guarda el `RENDER_DEPLOY_HOOK_URL` como secret
+- [x] 5.5 `release.yml`: `curl` al Deploy Hook de Render + verificación de SHA en `/health` (`RENDER_GIT_COMMIT`, inyectado automáticamente por Render; cubre el heartbeat también, ya que `/health` devuelve 503 si está stale)
 - [x] 5.6 Despliegue de `agent-console` y `widget` a Cloudflare Pages (dos proyectos de Pages distintos), condicionado a affected
 
 ## Definición de terminado
