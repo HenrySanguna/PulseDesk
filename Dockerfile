@@ -1,4 +1,4 @@
-FROM node:24-alpine AS deps
+FROM node:24-slim AS deps
 RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
 ENV CI=true
 WORKDIR /workspace
@@ -14,7 +14,10 @@ ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm exec prisma generate
 RUN pnpm nx run-many -t build,prune -p api
 
-FROM node:24-alpine AS runtime
+# node:24-slim (Debian/glibc), not -alpine (musl): argon2's native prebuild
+# only ships a glibc linux-x64 binary, no musl variant — on alpine it fails
+# at boot with "No native build was found ... libc=musl".
+FROM node:24-slim AS runtime
 RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
 ENV CI=true
 ENV NODE_ENV=production
