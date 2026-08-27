@@ -24,6 +24,12 @@ import { SessionsService } from './sessions.service.js';
     AgentSessionGuard,
     RoleGuard,
   ],
-  exports: [AgentSessionGuard, RoleGuard],
+  // SessionsService must be exported too, not just AgentSessionGuard: a
+  // consuming module (e.g. TicketsModule) referencing AgentSessionGuard
+  // via `@UseGuards(AgentSessionGuard)` resolves it through its OWN
+  // module injector, which needs every one of the guard's constructor
+  // dependencies to be independently reachable, not just the guard class
+  // itself.
+  exports: [AgentSessionGuard, RoleGuard, SessionsService],
 })
 export class AuthModule {}
