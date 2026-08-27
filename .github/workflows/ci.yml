@@ -81,6 +81,12 @@ jobs:
 
       - run: pnpm exec prisma generate
 
+      - name: Apply migrations (proves citext extension applies cleanly)
+        run: pnpm exec prisma migrate deploy
+
+      - name: Re-apply migrations (proves idempotency on re-run)
+        run: pnpm exec prisma migrate deploy
+
       - uses: nrwl/nx-set-shas@v4
 
       - run: pnpm nx affected -t lint test --parallel=3

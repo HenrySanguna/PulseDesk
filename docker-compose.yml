@@ -29,6 +29,22 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://pulsedesk:pulsedesk@postgres:5432/pulsedesk?schema=public
+      REDIS_URL: redis://valkey:6379
+    ports:
+      - '3000:3000'
+
 volumes:
   postgres-data:
   valkey-data:
