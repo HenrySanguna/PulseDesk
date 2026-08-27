@@ -10,8 +10,7 @@ permissions:
 
 env:
   NODE_VERSION: 24
-  # Update if the Render service ends up with a different auto-assigned hostname.
-  RENDER_APP_HOSTNAME: pulsedesk-api.onrender.com
+  RENDER_APP_HOSTNAME: pulsedesk-api-u18w.onrender.com
 
 jobs:
   affected:
