@@ -4,6 +4,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import type { Message, Prisma, Ticket } from '@pulsedesk/db';
 import {
@@ -19,6 +20,8 @@ import {
   type AssignmentQueuePort,
 } from '../sla/assignment-queue.service.js';
 import { SlaClockService, type SlaClockPort } from '../sla/sla-clock.service.js';
+import { RealtimeEventBusService } from '../realtime/realtime-event-bus.service.js';
+import type { RealtimeEventBusPort } from '../realtime/realtime-event.js';
 import type { CreateMessageDto } from './dto/create-message.dto.js';
 import type { CreateTicketDto } from './dto/create-ticket.dto.js';
 import type { ListTicketsQueryDto } from './dto/list-tickets.dto.js';
@@ -26,6 +29,14 @@ import { assertValidTransition } from './ticket-state-machine.js';
 
 export interface TicketWithMessages extends Ticket {
   messages: Message[];
+  // The widget `ws` conversation room this ticket is linked to (see
+  // 05-add-realtime-hybrid's "Nota de arquitectura: puente
+  // Conversation-Ticket") — `null` for a ticket with no widget conversation
+  // (e.g. agent-created). `apps/agent-console`'s `ConversationStore` needs
+  // this exact id: `ConversationGateway` rooms are keyed by the REAL
+  // `conversationId` a widget socket auto-joins from its token, so an agent
+  // must `join` with that same id to ever see that conversation's traffic.
+  conversationId: string | null;
 }
 
 export interface ListTicketsResult {
@@ -38,11 +49,17 @@ export interface ListTicketsResult {
 @Injectable()
 export class TicketsService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
     @Inject(AssignmentQueueService)
     private readonly assignmentQueue: AssignmentQueuePort,
     @Inject(SlaClockService)
     private readonly slaClocks: SlaClockPort,
+    // Optional — see realtime/realtime-event.ts's RealtimeEventBusPort doc
+    // comment for why this isn't a required constructor argument.
+    @Optional()
+    @Inject(RealtimeEventBusService)
+    private readonly realtime?: RealtimeEventBusPort,
   ) {}
 
   /** Every new ticket is unassigned (`CreateTicketDto` never accepts an
@@ -99,6 +116,9 @@ export class TicketsService {
       policy.resolutionMinutes,
     );
     await this.assignmentQueue.enqueueAutoAssign(ticket.id);
+    // New ticket -> dashboard counts changed (05-add-realtime-hybrid
+    // "Definición de terminado": the queue counter updates on its own).
+    await this.realtime?.publishDashboardSnapshot();
     return ticket;
   }
 
@@ -130,12 +150,16 @@ export class TicketsService {
   async getTicketForAgent(id: string): Promise<TicketWithMessages> {
     const ticket = await this.prisma.ticket.findUnique({
       where: { id },
-      include: { messages: { orderBy: { createdAt: 'asc' } } },
+      include: {
+        messages: { orderBy: { createdAt: 'asc' } },
+        conversation: { select: { id: true } },
+      },
     });
     if (!ticket) {
       throw new NotFoundException('TICKET_NOT_FOUND');
     }
-    return ticket;
+    const { conversation, ...rest } = ticket;
+    return { ...rest, conversationId: conversation?.id ?? null };
   }
 
   /** The visibility filter lives in this query's Prisma `WHERE`, not in a
@@ -153,12 +177,14 @@ export class TicketsService {
           where: { visibility: MessageVisibility.PUBLIC },
           orderBy: { createdAt: 'asc' },
         },
+        conversation: { select: { id: true } },
       },
     });
     if (!ticket) {
       throw new NotFoundException('TICKET_NOT_FOUND');
     }
-    return ticket;
+    const { conversation, ...rest } = ticket;
+    return { ...rest, conversationId: conversation?.id ?? null };
   }
 
   /** Atomic claim: the race condition lives entirely in this `updateMany`
@@ -176,8 +202,8 @@ export class TicketsService {
       throw new ConflictException('TICKET_ALREADY_CLAIMED');
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const ticket = await tx.ticket.findUniqueOrThrow({ where: { id } });
+    const ticket = await this.prisma.$transaction(async (tx) => {
+      const found = await tx.ticket.findUniqueOrThrow({ where: { id } });
       await tx.ticketEvent.create({
         data: {
           ticketId: id,
@@ -185,8 +211,10 @@ export class TicketsService {
           actorAgentId: agentId,
         },
       });
-      return ticket;
+      return found;
     });
+    await this.realtime?.publishDashboardSnapshot();
+    return ticket;
   }
 
   /** SLA side effects live in `applySlaTransition`, run AFTER the status
@@ -224,6 +252,7 @@ export class TicketsService {
     });
 
     await this.applySlaTransition(id, from, next);
+    await this.realtime?.publishDashboardSnapshot();
     return ticket;
   }
 

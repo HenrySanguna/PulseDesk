@@ -58,6 +58,10 @@ export interface Message {
 /** Shape of `GET /tickets/:id` — matches `TicketsService.getTicketForAgent`. */
 export interface TicketWithMessages extends Ticket {
   messages: Message[];
+  /** The widget `ws` conversation room this ticket is linked to (added by
+   * `05-add-realtime-hybrid`) — `null` for a ticket with no widget
+   * conversation. Feeds `ConversationStore`'s `join`. */
+  conversationId: string | null;
 }
 
 /** Shape of `GET /tickets` — matches `TicketsService.ListTicketsResult`. */

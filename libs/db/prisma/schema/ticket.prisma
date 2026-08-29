@@ -55,6 +55,10 @@ model Ticket {
   messages    Message[]
   events      TicketEvent[]
   slaClocks   SlaClock[]
+  // Back-relation for 05-add-realtime-hybrid's Conversation-Ticket bridge —
+  // see widget.prisma's `Conversation.ticketId`. Optional: an
+  // agent-created ticket (no widget conversation) never has one.
+  conversation Conversation?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 

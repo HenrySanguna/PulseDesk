@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -22,6 +23,7 @@ import {
   TICKET_PRIORITY_SEVERITY,
   TICKET_STATUS_SEVERITY,
 } from '../../models/ticket-display';
+import { ConversationStore } from '../../services/conversation.store';
 import { TicketDetailStore } from '../../services/ticket-detail.store';
 
 @Component({
@@ -34,6 +36,7 @@ import { TicketDetailStore } from '../../services/ticket-detail.store';
 export class TicketDetail {
   private readonly router = inject(Router);
   protected readonly store = inject(TicketDetailStore);
+  protected readonly conversation = inject(ConversationStore);
 
   // Bound automatically from the `:id` route param — see
   // `withComponentInputBinding()` in app.config.ts.
@@ -72,6 +75,17 @@ export class TicketDetail {
     effect(() => {
       this.store.load(this.id());
     });
+    // Live delivery (tasks.md 2.6, Definición de terminado): joins this
+    // ticket's `ws` room once its linked widget conversation is known —
+    // most agent-created tickets have none (`conversationId: null`), which
+    // is a normal, silent no-op here.
+    effect(() => {
+      const conversationId = this.store.ticket()?.conversationId;
+      if (conversationId) {
+        this.conversation.join(conversationId);
+      }
+    });
+    inject(DestroyRef).onDestroy(() => this.conversation.leave());
   }
 
   protected backToQueue(): void {

@@ -16,5 +16,9 @@ import { TicketsService } from './tickets.service.js';
   imports: [AuthModule, WidgetModule, SlaModule],
   controllers: [TicketsController],
   providers: [PrismaService, TicketsService, TicketRequesterGuard],
+  // TicketsService is exported for 05-add-realtime-hybrid's RealtimeModule
+  // (WidgetMessagingService reuses TicketsService.createTicket for the
+  // Conversation-Ticket bridge — see realtime/widget-messaging.service.ts).
+  exports: [TicketsService],
 })
 export class TicketsModule {}

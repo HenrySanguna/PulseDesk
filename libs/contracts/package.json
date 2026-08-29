@@ -21,6 +21,11 @@
       "import": "./src/lib/tickets.ts",
       "default": "./src/lib/tickets.ts"
     },
+    "./realtime": {
+      "types": "./src/lib/realtime.ts",
+      "import": "./src/lib/realtime.ts",
+      "default": "./src/lib/realtime.ts"
+    },
     "./package.json": "./package.json"
   },
   "dependencies": {

@@ -12,6 +12,7 @@ import {
 } from '@nestjs/platform-fastify';
 import fastifyCookie from '@fastify/cookie';
 import { AppModule } from './app/app.module';
+import { NativeWsAdapter } from './realtime/native-ws.adapter';
 
 async function bootstrap() {
   // Fail fast before any Nest DI container exists — see
@@ -25,6 +26,10 @@ async function bootstrap() {
   // Required for AgentSessionGuard to read the httpOnly `pd_session`
   // cookie and for /auth/login to set it.
   await app.register(fastifyCookie);
+  // ws chat channel (05-add-realtime-hybrid, tasks.md 2.1) — no
+  // Socket.IO/@nestjs/platform-ws, a hand-rolled adapter over the `ws`
+  // package attached to the same underlying HTTP server Fastify listens on.
+  app.useWebSocketAdapter(new NativeWsAdapter(app));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

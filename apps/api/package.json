@@ -9,6 +9,7 @@
     "@nestjs/jwt": "^12.0.1",
     "@nestjs/platform-fastify": "^11.2.3",
     "@nestjs/throttler": "^6.5.0",
+    "@nestjs/websockets": "^11.0.0",
     "@prisma/client": "^7.10.0",
     "@pulsedesk/contracts": "workspace:*",
     "@pulsedesk/db": "workspace:*",
@@ -21,9 +22,11 @@
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
     "tslib": "^2.3.0",
+    "ws": "^8.18.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@nestjs/testing": "^11.0.0"
+    "@nestjs/testing": "^11.0.0",
+    "@types/ws": "^8.5.12"
   }
 }

@@ -54,7 +54,8 @@
           "buildTarget": "widget:build:production"
         },
         "development": {
-          "buildTarget": "widget:build:development"
+          "buildTarget": "widget:build:development",
+          "proxyConfig": "apps/widget/proxy.conf.json"
         }
       }
     },

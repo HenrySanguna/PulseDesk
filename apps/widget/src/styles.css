@@ -1,1 +1,8 @@
 /* You can add global styles to this file, and also import other style files */
+
+@layer tailwind-base, primeng, tailwind-utilities;
+
+@import 'tailwindcss/theme.css' layer(tailwind-base);
+@import 'tailwindcss/utilities.css' layer(tailwind-utilities);
+
+@import 'tailwindcss-primeui';

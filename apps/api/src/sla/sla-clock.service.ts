@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type { BusinessCalendar } from '@pulsedesk/sla-engine';
 import { addBusinessMinutes, businessMinutesBetween } from '@pulsedesk/sla-engine';
 import type { SlaClock, SlaClockKind } from '@pulsedesk/db';
 import { PrismaService, TicketEventType } from '@pulsedesk/db';
+import { RealtimeEventBusService } from '../realtime/realtime-event-bus.service.js';
+import type { RealtimeEventBusPort } from '../realtime/realtime-event.js';
 import { BusinessCalendarRepository } from './business-calendar.repository.js';
 import { SlaClockConflictException } from './sla-clock-conflict.exception.js';
 import { SlaClockRepository } from './sla-clock.repository.js';
@@ -32,6 +34,16 @@ export class SlaClockService implements SlaClockPort {
     private readonly calendars: BusinessCalendarRepository,
     private readonly slaQueue: SlaQueueService,
     private readonly prisma: PrismaService,
+    // Optional — see realtime/realtime-event.ts's RealtimeEventBusPort doc
+    // comment. Publishes a dashboard event on a real breach (see `breach()`
+    // below) — this is 05-add-realtime-hybrid's "worker generates an event,
+    // api forwards it to SSE clients" scenario (spec "Propagación de
+    // eventos generados por el worker"), with `SlaConsumer`/`SlaSweepConsumer`
+    // standing in for the "worker" side per this repo's no-separate-process
+    // architecture (see 04-add-sla-jobs's own "Nota de arquitectura").
+    @Optional()
+    @Inject(RealtimeEventBusService)
+    private readonly realtime?: RealtimeEventBusPort,
   ) {}
 
   /** Creates a new clock for `ticketId`/`kind` with `targetMinutes` of
@@ -241,6 +253,7 @@ export class SlaClockService implements SlaClockPort {
         return tx.slaClock.findUniqueOrThrow({ where: { id: clock.id } });
       });
       await this.slaQueue.cancelDueJob(clock);
+      await this.realtime?.publishDashboardSnapshot();
       return updated;
     } catch (err) {
       if (err instanceof SlaClockConflictException) {

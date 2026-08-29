@@ -18,6 +18,18 @@ model Conversation {
   id         String   @id @default(uuid())
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
+  // Bridges the widget's conversationId (JWT-scoped, see WidgetTokenPayload)
+  // to the ticket/message domain — added by 05-add-realtime-hybrid. Null
+  // until the customer's first `ws` `message:send`: `WidgetMessagingService`
+  // lazily creates the ticket then (via `TicketsService.createTicket`, same
+  // SLA/priority rules as an agent-created ticket) and links it here with an
+  // atomic `updateMany({ where: { id, ticketId: null } })` guard — the same
+  // race-safe pattern `TicketsService.claimTicket` already uses — so two
+  // concurrent first-messages on the same conversation never create two
+  // tickets. See openspec/changes/05-add-realtime-hybrid/tasks.md "Nota de
+  // arquitectura: puente Conversation-Ticket".
+  ticketId   String?  @unique
+  ticket     Ticket?  @relation(fields: [ticketId], references: [id])
   createdAt  DateTime @default(now())
 
   @@index([customerId])

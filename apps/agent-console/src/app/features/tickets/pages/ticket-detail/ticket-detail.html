@@ -92,6 +92,52 @@
       }
     </section>
 
+    @if (ticket.conversationId) {
+      <section class="flex flex-col gap-3 rounded border border-surface-200 p-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-medium">Live activity</h2>
+          <span
+            class="flex items-center gap-1 text-xs"
+            [class.text-green-600]="conversation.connected()"
+            [class.text-surface-400]="!conversation.connected()"
+          >
+            <span
+              class="h-2 w-2 rounded-full"
+              [class.bg-green-500]="conversation.connected()"
+              [class.bg-surface-300]="!conversation.connected()"
+            ></span>
+            {{ conversation.connected() ? 'Live' : 'Reconnecting…' }}
+          </span>
+        </div>
+
+        @if (conversation.typingFrom(); as typing) {
+          <p class="text-sm italic text-surface-500">
+            {{ typing.kind === 'widget' ? 'The customer' : 'An agent' }} is typing…
+          </p>
+        }
+
+        @if (conversation.messages().length === 0) {
+          <p class="text-sm text-surface-500">
+            No new messages since this page was opened.
+          </p>
+        } @else {
+          @for (message of conversation.messages(); track message.id) {
+            <article class="rounded border border-surface-100 bg-surface-50 p-3">
+              <div class="mb-1 flex items-center justify-between">
+                <span class="text-xs font-medium text-surface-600">{{
+                  message.authorAgentId ? 'Agent' : 'Customer'
+                }}</span>
+                <span class="text-xs text-surface-500">{{
+                  message.createdAt | date: 'short'
+                }}</span>
+              </div>
+              <p class="whitespace-pre-wrap">{{ message.body }}</p>
+            </article>
+          }
+        }
+      </section>
+    }
+
     <section class="flex flex-col gap-3 rounded border border-surface-200 p-4">
       <h2 class="text-lg font-medium">Reply</h2>
       <pd-textarea
