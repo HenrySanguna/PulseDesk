@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { HealthModule } from '../health/health.module.js';
+import { SlaModule } from '../sla/sla.module.js';
 import { TicketsModule } from '../tickets/tickets.module.js';
 import { WidgetModule } from '../widget/widget.module.js';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 @Module({
-  imports: [HealthModule, AuthModule, WidgetModule, TicketsModule],
+  imports: [HealthModule, AuthModule, WidgetModule, SlaModule, TicketsModule],
   controllers: [AppController],
   providers: [AppService],
 })

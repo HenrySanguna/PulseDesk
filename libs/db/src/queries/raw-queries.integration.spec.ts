@@ -85,5 +85,6 @@ describe('raw aggregation queries (real Postgres)', () => {
     expect(typeof row?.maxCapacity).toBe('number');
     expect(typeof row?.loadRank).toBe('number');
     expect(row?.activeTicketCount).toBeGreaterThanOrEqual(1);
+    expect(row?.lastAssignedAt === null || row?.lastAssignedAt instanceof Date).toBe(true);
   });
 });

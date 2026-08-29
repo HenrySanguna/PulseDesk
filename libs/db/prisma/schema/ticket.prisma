@@ -34,6 +34,10 @@ enum TicketEventType {
   ASSIGNED
   STATUS_CHANGED
   MESSAGE_ADDED
+  // Written exactly once per SlaClock breach by
+  // apps/api/src/sla/sla-clock.service.ts's `breach()` — the "single
+  // escalation effect" 04-add-sla-jobs's idempotency spec requires.
+  SLA_BREACHED
 }
 
 model Ticket {
@@ -49,6 +53,7 @@ model Ticket {
   slaPolicy   SlaPolicy?     @relation(fields: [slaPolicyId], references: [id])
   messages    Message[]
   events      TicketEvent[]
+  slaClocks   SlaClock[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 

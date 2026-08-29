@@ -13,10 +13,13 @@
   "exclude": ["eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
   "references": [
     {
-      "path": "../../libs/contracts/tsconfig.lib.json"
+      "path": "../../libs/sla-engine/tsconfig.lib.json"
     },
     {
       "path": "../../libs/db/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/contracts/tsconfig.lib.json"
     }
   ]
 }

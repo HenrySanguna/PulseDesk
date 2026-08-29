@@ -27,6 +27,12 @@ model Agent {
   availability AgentAvailability @default(OFFLINE)
   maxCapacity  Int               @default(5)
   isActive     Boolean           @default(true)
+  // Set by the round-robin auto-assignment consumer (04-add-sla-jobs)
+  // every time this agent receives an auto-assigned ticket — the
+  // round-robin tie-break ("longest since last assignment wins") reads
+  // this. NULL means never auto-assigned, which sorts first (wins every
+  // tie) — see apps/api/src/sla/round-robin.ts.
+  lastAssignedAt DateTime?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 

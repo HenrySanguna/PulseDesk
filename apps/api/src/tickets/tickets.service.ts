@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,6 +12,10 @@ import {
   TicketPriority,
   TicketStatus,
 } from '@pulsedesk/db';
+import {
+  AssignmentQueueService,
+  type AssignmentQueuePort,
+} from '../sla/assignment-queue.service.js';
 import type { CreateMessageDto } from './dto/create-message.dto.js';
 import type { CreateTicketDto } from './dto/create-ticket.dto.js';
 import type { ListTicketsQueryDto } from './dto/list-tickets.dto.js';
@@ -29,11 +34,23 @@ export interface ListTicketsResult {
 
 @Injectable()
 export class TicketsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(AssignmentQueueService)
+    private readonly assignmentQueue: AssignmentQueuePort,
+  ) {}
 
+  /** Every new ticket is unassigned (`CreateTicketDto` never accepts an
+   * `assigneeId`), so creation always enqueues an auto-assignment attempt —
+   * the exact trigger design.md names for the `assignment` queue
+   * ("disparado al crear un ticket sin agente preasignado"). Enqueued after
+   * the DB transaction commits, not inside it: a Valkey hiccup must not
+   * roll back a successfully created ticket, and the round-robin consumer
+   * re-reads `assigneeId` before acting either way (safe to skip once and
+   * pick the ticket up later via a manual claim instead). */
   async createTicket(dto: CreateTicketDto): Promise<Ticket> {
-    return this.prisma.$transaction(async (tx) => {
-      const ticket = await tx.ticket.create({
+    const ticket = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.ticket.create({
         data: {
           customerId: dto.customerId,
           subject: dto.subject,
@@ -41,10 +58,12 @@ export class TicketsService {
         },
       });
       await tx.ticketEvent.create({
-        data: { ticketId: ticket.id, type: TicketEventType.CREATED },
+        data: { ticketId: created.id, type: TicketEventType.CREATED },
       });
-      return ticket;
+      return created;
     });
+    await this.assignmentQueue.enqueueAutoAssign(ticket.id);
+    return ticket;
   }
 
   /** Queue view: default order is priority DESC, then age ASC within the

@@ -13,6 +13,8 @@ export type {
   Message,
   TicketEvent,
   SlaPolicy,
+  SlaClock,
+  BusinessCalendar as BusinessCalendarRow,
 } from './generated/client.js';
 export {
   Prisma,
@@ -22,4 +24,5 @@ export {
   TicketPriority,
   MessageVisibility,
   TicketEventType,
+  SlaClockKind,
 } from './generated/client.js';

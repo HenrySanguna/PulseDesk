@@ -1,0 +1,68 @@
+// SLA persistence layer (04-add-sla-jobs): `SlaClock` rows are the
+// persistent, per-ticket/per-kind counterpart of the pure business-time
+// calculator in `libs/sla-engine` (`businessMinutesBetween`,
+// `addBusinessMinutes`) — this schema never reimplements that math, it only
+// stores the state the calculator needs (targetMinutes/consumedMinutes) and
+// the state it produces (dueAt). `BusinessCalendar` persists the calendar
+// config consumed by that same library. See design.md and
+// apps/api/src/sla/.
+
+enum SlaClockKind {
+  FIRST_RESPONSE
+  RESOLUTION
+}
+
+// Single active calendar for the MVP — see 04-add-sla-jobs proposal.md
+// ("Out of scope": per-user-configurable SLA rules beyond the
+// already-defined priority policy). No admin API manages this table yet;
+// apps/api/src/sla/business-calendar.repository.ts falls back to a
+// hardcoded default calendar when no row exists so the system is
+// functional before that admin tooling lands.
+model BusinessCalendar {
+  id        String   @id @default(uuid())
+  timezone  String
+  // BusinessWindow[] (day/from/to), JSON-shaped exactly like
+  // libs/sla-engine's BusinessWindow so it round-trips with no mapper
+  // beyond a structural cast.
+  windows   Json
+  holidays  String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SlaClock {
+  id       String       @id @default(uuid())
+  ticketId String
+  ticket   Ticket       @relation(fields: [ticketId], references: [id])
+  kind     SlaClockKind
+
+  targetMinutes   Int
+  consumedMinutes Int @default(0)
+
+  // Start of the CURRENT unpaused interval — set at creation and at every
+  // resume. `consumedMinutes` plus `businessMinutesBetween(activeSince, now)`
+  // is the total business time burned so far. Not meaningful while paused
+  // (consumedMinutes already reflects it, activeSince is stale until the
+  // next resume).
+  activeSince DateTime @default(now())
+
+  // Current scheduled business-time deadline. NULL while paused or
+  // completed — there is deliberately no due job to fire in those states.
+  dueAt DateTime?
+
+  pausedAt    DateTime?
+  completedAt DateTime?
+  breachedAt  DateTime?
+
+  // Manual optimistic-lock guard — Prisma has no @VersionColumn. See
+  // design.md "Bloqueo optimista manual" and
+  // apps/api/src/sla/sla-clock.repository.ts.
+  version Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One clock per ticket per kind — `start()` relies on this to reject a
+  // second FIRST_RESPONSE/RESOLUTION clock for the same ticket.
+  @@unique([ticketId, kind])
+}

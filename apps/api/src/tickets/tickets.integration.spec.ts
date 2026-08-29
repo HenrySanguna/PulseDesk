@@ -8,7 +8,15 @@ import {
   TicketStatus,
 } from '@pulsedesk/db';
 import { seedTestAgent } from '../auth/test-fakes.js';
+import type { AssignmentQueuePort } from '../sla/assignment-queue.service.js';
 import { TicketsService } from './tickets.service.js';
+
+/** Ticket-domain integration tests don't exercise auto-assignment (that's
+ * `apps/api/src/sla/assignment.consumer.integration.spec.ts`'s job) — a
+ * no-op fake keeps `createTicket` from touching real BullMQ/Valkey here. */
+function makeAssignmentQueue(): AssignmentQueuePort {
+  return { enqueueAutoAssign: async () => undefined };
+}
 
 /**
  * Real-Postgres integration tests for the ticket domain — tasks.md 5.1
@@ -20,7 +28,7 @@ import { TicketsService } from './tickets.service.js';
  */
 describe('TicketsService (real Postgres)', () => {
   const prisma = new PrismaService();
-  const service = new TicketsService(prisma);
+  const service = new TicketsService(prisma, makeAssignmentQueue());
   const suffix = `tix-${Date.now()}`;
   const customerId = crypto.randomUUID();
   const agentAId = crypto.randomUUID();

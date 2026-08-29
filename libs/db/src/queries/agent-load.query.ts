@@ -9,6 +9,7 @@ interface AgentLoadRawRow {
   activeTicketCount: bigint;
   maxCapacity: number;
   loadRank: bigint;
+  lastAssignedAt: Date | null;
 }
 
 export interface AgentLoad {
@@ -20,6 +21,11 @@ export interface AgentLoad {
   /** 1 = most loaded. Ties share the same rank (`RANK()`, not
    * `ROW_NUMBER()` or `DENSE_RANK()`). */
   loadRank: number;
+  /** Set by round-robin auto-assignment (04-add-sla-jobs) every time this
+   * agent receives an assignment. `null` if never auto-assigned — used as
+   * the round-robin tie-break (see `libs/sla-engine`-adjacent
+   * `apps/api/src/sla/round-robin.ts`: least-recently-assigned wins). */
+  lastAssignedAt: Date | null;
 }
 
 /**
@@ -38,11 +44,12 @@ export async function getAgentLoad(
       a."maxCapacity" AS "maxCapacity",
       RANK() OVER (
         ORDER BY COUNT(t.id) FILTER (WHERE t.status IN ('OPEN', 'PENDING')) DESC
-      ) AS "loadRank"
+      ) AS "loadRank",
+      a."lastAssignedAt" AS "lastAssignedAt"
     FROM "Agent" a
     LEFT JOIN "Ticket" t ON t."assigneeId" = a.id
     WHERE a."isActive" = true
-    GROUP BY a.id, a.email, a."maxCapacity"
+    GROUP BY a.id, a.email, a."maxCapacity", a."lastAssignedAt"
     ORDER BY "loadRank" ASC
   `;
 
@@ -52,5 +59,6 @@ export async function getAgentLoad(
     activeTicketCount: bigIntToNumber(row.activeTicketCount),
     maxCapacity: row.maxCapacity,
     loadRank: bigIntToNumber(row.loadRank),
+    lastAssignedAt: row.lastAssignedAt,
   }));
 }
