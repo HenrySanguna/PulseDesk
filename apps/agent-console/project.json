@@ -54,7 +54,8 @@
           "buildTarget": "agent-console:build:production"
         },
         "development": {
-          "buildTarget": "agent-console:build:development"
+          "buildTarget": "agent-console:build:development",
+          "proxyConfig": "apps/agent-console/proxy.conf.json"
         }
       }
     },

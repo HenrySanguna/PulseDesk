@@ -1,0 +1,54 @@
+<p-table
+  [value]="sortedValue()"
+  [loading]="loading()"
+  [paginator]="paginator()"
+  [rows]="rows()"
+  [first]="first()"
+  [totalRecords]="totalRecords()"
+  [lazy]="true"
+  [lazyLoadOnInit]="false"
+  (onLazyLoad)="handleLazyLoad($event)"
+  [rowHover]="true"
+  [dataKey]="dataKey()"
+  styleClass="w-full"
+>
+  <ng-template #header>
+    <tr>
+      @for (col of columns(); track col.field) {
+        @if (col.sortable) {
+          <th [pSortableColumn]="col.field" class="whitespace-nowrap">
+            {{ col.header }}
+            <p-sort-icon [field]="col.field" />
+          </th>
+        } @else {
+          <th class="whitespace-nowrap">{{ col.header }}</th>
+        }
+      }
+    </tr>
+  </ng-template>
+  <ng-template #body let-row>
+    <tr class="cursor-pointer" (click)="rowClick.emit(row)">
+      @for (col of columns(); track col.field) {
+        <td>
+          @if (templateFor(col.field); as tpl) {
+            <ng-container
+              *ngTemplateOutlet="tpl; context: { $implicit: row }"
+            />
+          } @else {
+            {{ row[col.field] }}
+          }
+        </td>
+      }
+    </tr>
+  </ng-template>
+  <ng-template #emptymessage>
+    <tr>
+      <td
+        [attr.colspan]="columns().length"
+        class="py-6 text-center text-surface-500"
+      >
+        No tickets match the current filters.
+      </td>
+    </tr>
+  </ng-template>
+</p-table>

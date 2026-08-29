@@ -19,8 +19,6 @@
     "customConditions": ["@org/source"],
     "noUncheckedSideEffectImports": false,
     "types": ["*"],
-    "paths": {
-      "@pulsedesk/ui": ["./libs/ui/src/index.ts"]
-    }
+    "paths": {}
   }
 }

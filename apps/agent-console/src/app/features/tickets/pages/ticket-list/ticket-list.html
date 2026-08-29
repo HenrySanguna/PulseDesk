@@ -1,0 +1,82 @@
+<div class="mx-auto flex max-w-6xl flex-col gap-4 p-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-xl font-semibold">Ticket queue</h1>
+    <pd-button
+      label="Refresh"
+      [loading]="store.loading()"
+      (clicked)="store.refresh()"
+    />
+  </div>
+
+  <div
+    class="flex flex-wrap items-end gap-3 rounded border border-surface-200 p-4"
+  >
+    <div class="flex flex-col gap-1">
+      <span class="text-sm text-surface-600">Status</span>
+      <pd-select
+        [options]="statusOptions"
+        placeholder="Any status"
+        [clearable]="true"
+        [value]="draftStatus()"
+        (valueChange)="draftStatus.set($event)"
+      />
+    </div>
+    <div class="flex flex-col gap-1">
+      <span class="text-sm text-surface-600">Priority</span>
+      <pd-select
+        [options]="priorityOptions"
+        placeholder="Any priority"
+        [clearable]="true"
+        [value]="draftPriority()"
+        (valueChange)="draftPriority.set($event)"
+      />
+    </div>
+    <div class="flex flex-col gap-1">
+      <span class="text-sm text-surface-600">Assignee ID</span>
+      <pd-input-text
+        placeholder="Agent UUID"
+        [value]="draftAssigneeId()"
+        (valueChange)="draftAssigneeId.set($event)"
+      />
+    </div>
+    <pd-button
+      label="Apply filters"
+      severity="primary"
+      (clicked)="applyFilters()"
+    />
+  </div>
+
+  @if (store.error(); as error) {
+    <p class="text-sm text-red-600">{{ error }}</p>
+  }
+
+  <pd-table
+    [value]="store.items()"
+    [columns]="columns"
+    [loading]="store.loading()"
+    [totalRecords]="store.total()"
+    [rows]="store.pageSize()"
+    [first]="(store.page() - 1) * store.pageSize()"
+    (page)="onPage($event)"
+    (rowClick)="openTicket($event)"
+  >
+    <ng-template pdColumnTemplate="status" let-ticket>
+      <pd-tag
+        [value]="ticket.status"
+        [severity]="statusSeverityFor(ticket.status)"
+      />
+    </ng-template>
+    <ng-template pdColumnTemplate="priority" let-ticket>
+      <pd-tag
+        [value]="ticket.priority"
+        [severity]="prioritySeverityFor(ticket.priority)"
+      />
+    </ng-template>
+    <ng-template pdColumnTemplate="assigneeId" let-ticket>
+      {{ ticket.assigneeId ?? 'Unassigned' }}
+    </ng-template>
+    <ng-template pdColumnTemplate="createdAt" let-ticket>
+      {{ ticket.createdAt | date: 'short' }}
+    </ng-template>
+  </pd-table>
+</div>

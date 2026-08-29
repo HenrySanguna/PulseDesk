@@ -11,6 +11,16 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./auth": {
+      "types": "./src/lib/auth.ts",
+      "import": "./src/lib/auth.ts",
+      "default": "./src/lib/auth.ts"
+    },
+    "./tickets": {
+      "types": "./src/lib/tickets.ts",
+      "import": "./src/lib/tickets.ts",
+      "default": "./src/lib/tickets.ts"
+    },
     "./package.json": "./package.json"
   },
   "dependencies": {
