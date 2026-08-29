@@ -1,7 +1,8 @@
 // Ticket domain: the ticket queue, its explicit state machine, internal
-// notes, and the SLA policy association. The policy is only linked here —
-// its clock does not run yet (see 03-add-ticket-queue proposal.md, "Out of
-// scope": SlaClock/auto-expiry land in Phase 4).
+// notes, and the SLA policy association. `Ticket.slaPolicyId` is set by
+// `TicketsService.createTicket` (04-add-sla-jobs "Definición de terminado")
+// from the seeded `SlaPolicy` row matching the ticket's priority; its two
+// `SlaClock`s (FIRST_RESPONSE/RESOLUTION) start together at creation.
 
 enum TicketStatus {
   NEW
@@ -96,11 +97,20 @@ model TicketEvent {
   @@index([ticketId])
 }
 
+// One row per `TicketPriority` (`@unique`) — a ticket's priority maps to
+// exactly one policy via a plain `findUnique`, no ranking/precedence logic
+// needed. Seeded exactly once (4 fixed rows, one per priority) by a
+// data-only migration — see
+// libs/db/prisma/migrations/<...>_seed_sla_policies/migration.sql — since
+// this repo has no separate seed script/tooling. Consumed by
+// apps/api/src/tickets/tickets.service.ts's `createTicket` (04-add-sla-jobs
+// "Definición de terminado").
 model SlaPolicy {
-  id                   String   @id @default(uuid())
+  id                   String         @id @default(uuid())
   name                 String
+  priority             TicketPriority @unique
   firstResponseMinutes Int
   resolutionMinutes    Int
   tickets              Ticket[]
-  createdAt            DateTime @default(now())
+  createdAt            DateTime       @default(now())
 }

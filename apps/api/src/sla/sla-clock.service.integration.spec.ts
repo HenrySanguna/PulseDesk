@@ -151,6 +151,61 @@ describe('SlaClockService (real Postgres + real Valkey)', () => {
     expect(first?.completedAt).toEqual(second?.completedAt);
   });
 
+  it('reactivate() reuses the same completed clock row, clears completedAt/breachedAt, and recomputes remaining minutes', async () => {
+    const ticketId = await seedTicket('reactivate');
+    const clock = await service.start(ticketId, SlaClockKind.RESOLUTION, 480);
+    clockIds.push(clock.id);
+
+    await prisma.slaClock.update({
+      where: { id: clock.id },
+      data: {
+        completedAt: new Date(),
+        breachedAt: new Date(Date.now() - 5 * 60_000),
+        consumedMinutes: 300,
+        dueAt: null,
+      },
+    });
+
+    const reactivated = await service.reactivate(ticketId, SlaClockKind.RESOLUTION);
+
+    expect(reactivated.id).toBe(clock.id); // same row, not a new one
+    expect(reactivated.completedAt).toBeNull();
+    expect(reactivated.breachedAt).toBeNull();
+    expect(reactivated.dueAt).not.toBeNull();
+    if (!reactivated.dueAt) {
+      throw new Error('expected dueAt to be set after reactivation');
+    }
+    const remainingMinutes = Math.round(
+      (reactivated.dueAt.getTime() - reactivated.activeSince.getTime()) / 60_000,
+    );
+    expect(remainingMinutes).toBe(480 - 300);
+
+    // The due job is rescheduled — not left cancelled from complete().
+    const jobId = slaDueJobId(clock.id, clock.targetMinutes);
+    expect(await slaQueue.queue.getJob(jobId)).toBeDefined();
+  });
+
+  it('reactivate() clamps remaining minutes to zero (immediately due) when consumedMinutes already meets or exceeds targetMinutes', async () => {
+    const ticketId = await seedTicket('reactivate-breached');
+    const clock = await service.start(ticketId, SlaClockKind.RESOLUTION, 60);
+    clockIds.push(clock.id);
+
+    await prisma.slaClock.update({
+      where: { id: clock.id },
+      data: { completedAt: new Date(), consumedMinutes: 60, breachedAt: new Date() },
+    });
+
+    const reactivated = await service.reactivate(ticketId, SlaClockKind.RESOLUTION);
+
+    if (!reactivated.dueAt) {
+      throw new Error('expected dueAt to be set after reactivation');
+    }
+    const remainingMinutes = Math.round(
+      (reactivated.dueAt.getTime() - reactivated.activeSince.getTime()) / 60_000,
+    );
+    expect(remainingMinutes).toBe(0);
+  });
+
   it('scheduling the same due job twice with the same jobId does not create a duplicate (layer-1 idempotency)', async () => {
     const ticketId = await seedTicket('dedup');
     const clock = await service.start(ticketId, SlaClockKind.RESOLUTION, 45);

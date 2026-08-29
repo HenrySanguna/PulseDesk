@@ -2,12 +2,14 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import type { Message, Prisma, Ticket } from '@pulsedesk/db';
 import {
   MessageVisibility,
   PrismaService,
+  SlaClockKind,
   TicketEventType,
   TicketPriority,
   TicketStatus,
@@ -16,6 +18,7 @@ import {
   AssignmentQueueService,
   type AssignmentQueuePort,
 } from '../sla/assignment-queue.service.js';
+import { SlaClockService, type SlaClockPort } from '../sla/sla-clock.service.js';
 import type { CreateMessageDto } from './dto/create-message.dto.js';
 import type { CreateTicketDto } from './dto/create-ticket.dto.js';
 import type { ListTicketsQueryDto } from './dto/list-tickets.dto.js';
@@ -38,6 +41,8 @@ export class TicketsService {
     private readonly prisma: PrismaService,
     @Inject(AssignmentQueueService)
     private readonly assignmentQueue: AssignmentQueuePort,
+    @Inject(SlaClockService)
+    private readonly slaClocks: SlaClockPort,
   ) {}
 
   /** Every new ticket is unassigned (`CreateTicketDto` never accepts an
@@ -47,21 +52,52 @@ export class TicketsService {
    * the DB transaction commits, not inside it: a Valkey hiccup must not
    * roll back a successfully created ticket, and the round-robin consumer
    * re-reads `assigneeId` before acting either way (safe to skip once and
-   * pick the ticket up later via a manual claim instead). */
+   * pick the ticket up later via a manual claim instead).
+   *
+   * Every priority is seeded with exactly one `SlaPolicy` row (see
+   * libs/db/prisma/migrations/<...>_seed_sla_policies) — the lookup and
+   * `slaPolicyId` write happen inside the same transaction as ticket
+   * creation, so a missing policy (a genuine data-integrity bug, not a user
+   * error) rolls the whole creation back instead of leaving an
+   * SLA-less ticket. Both clocks start together right after commit — an
+   * explicit product decision (04-add-sla-jobs "Definición de terminado"),
+   * not staggered. `SlaClockService.start()` does its own Prisma write plus
+   * a BullMQ enqueue, so — like `enqueueAutoAssign` — it can't participate
+   * in the transaction above and runs after it commits. */
   async createTicket(dto: CreateTicketDto): Promise<Ticket> {
-    const ticket = await this.prisma.$transaction(async (tx) => {
+    const priority = dto.priority ?? TicketPriority.NORMAL;
+    const { ticket, policy } = await this.prisma.$transaction(async (tx) => {
       const created = await tx.ticket.create({
-        data: {
-          customerId: dto.customerId,
-          subject: dto.subject,
-          priority: dto.priority ?? TicketPriority.NORMAL,
-        },
+        data: { customerId: dto.customerId, subject: dto.subject, priority },
       });
       await tx.ticketEvent.create({
         data: { ticketId: created.id, type: TicketEventType.CREATED },
       });
-      return created;
+
+      const foundPolicy = await tx.slaPolicy.findUnique({ where: { priority } });
+      if (!foundPolicy) {
+        throw new InternalServerErrorException(
+          `SLA_POLICY_NOT_FOUND: no SlaPolicy configured for priority ${priority}`,
+        );
+      }
+
+      const withPolicy = await tx.ticket.update({
+        where: { id: created.id },
+        data: { slaPolicyId: foundPolicy.id },
+      });
+      return { ticket: withPolicy, policy: foundPolicy };
     });
+
+    await this.slaClocks.start(
+      ticket.id,
+      SlaClockKind.FIRST_RESPONSE,
+      policy.firstResponseMinutes,
+    );
+    await this.slaClocks.start(
+      ticket.id,
+      SlaClockKind.RESOLUTION,
+      policy.resolutionMinutes,
+    );
     await this.assignmentQueue.enqueueAutoAssign(ticket.id);
     return ticket;
   }
@@ -153,19 +189,24 @@ export class TicketsService {
     });
   }
 
+  /** SLA side effects live in `applySlaTransition`, run AFTER the status
+   * transaction commits — see design.md/tasks.md "Definición de terminado"
+   * (industry-standard helpdesk SLA behavior: pause while waiting on the
+   * customer, complete on resolution, reactivate the same clock on
+   * reopen). */
   async updateStatus(
     id: string,
     next: TicketStatus,
     agentId: string,
   ): Promise<Ticket> {
-    return this.prisma.$transaction(async (tx) => {
-      const ticket = await tx.ticket.findUnique({ where: { id } });
-      if (!ticket) {
+    const { ticket, from } = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.ticket.findUnique({ where: { id } });
+      if (!existing) {
         throw new NotFoundException('TICKET_NOT_FOUND');
       }
       // Validated (and thrown) BEFORE any write — an invalid transition
       // must leave the ticket's status untouched.
-      assertValidTransition(ticket.status, next);
+      assertValidTransition(existing.status, next);
 
       const updated = await tx.ticket.update({
         where: { id },
@@ -176,29 +217,76 @@ export class TicketsService {
           ticketId: id,
           type: TicketEventType.STATUS_CHANGED,
           actorAgentId: agentId,
-          payload: { from: ticket.status, to: next },
+          payload: { from: existing.status, to: next },
         },
       });
-      return updated;
+      return { ticket: updated, from: existing.status };
     });
+
+    await this.applySlaTransition(id, from, next);
+    return ticket;
   }
 
+  /** Maps a validated ticket status transition to its SLA clock side
+   * effect — Zendesk/Freshdesk/Jira-Service-Management-style helpdesk SLA
+   * behavior. `pause`/`resume` already operate ticket-wide across every
+   * active/paused clock (no `kind` parameter), so OPEN<->PENDING affects
+   * both FIRST_RESPONSE and RESOLUTION uniformly. `-> RESOLVED` is only
+   * reachable from OPEN or PENDING (see `ticket-state-machine.ts`), so no
+   * extra `from` check is needed there. `-> CLOSED` (only reachable from
+   * RESOLVED) needs no clock action — the ticket was already completed by
+   * the prior RESOLVED transition. Reopen only reactivates RESOLUTION: the
+   * FIRST_RESPONSE clock stays completed forever once a first reply has
+   * happened. */
+  private async applySlaTransition(
+    ticketId: string,
+    from: TicketStatus,
+    to: TicketStatus,
+  ): Promise<void> {
+    if (from === TicketStatus.OPEN && to === TicketStatus.PENDING) {
+      await this.slaClocks.pause(ticketId);
+      return;
+    }
+    if (from === TicketStatus.PENDING && to === TicketStatus.OPEN) {
+      await this.slaClocks.resume(ticketId);
+      return;
+    }
+    if (to === TicketStatus.RESOLVED) {
+      await this.slaClocks.complete(ticketId, SlaClockKind.RESOLUTION);
+      return;
+    }
+    if (
+      to === TicketStatus.OPEN &&
+      (from === TicketStatus.RESOLVED || from === TicketStatus.CLOSED)
+    ) {
+      await this.slaClocks.reactivate(ticketId, SlaClockKind.RESOLUTION);
+    }
+  }
+
+  /** `addMessage` is only reachable via the agent-guarded
+   * `POST /tickets/:id/messages` route (see `tickets.controller.ts`) —
+   * every message created here is agent-authored, so the first
+   * PUBLIC-visibility one completes the FIRST_RESPONSE clock.
+   * `SlaClockService.complete()` is idempotent (no-ops once `completedAt`
+   * is set), so calling it on every PUBLIC message is simpler and equally
+   * correct as separately tracking "is this the first one". */
   async addMessage(
     id: string,
     dto: CreateMessageDto,
     agentId: string,
   ): Promise<Message> {
-    return this.prisma.$transaction(async (tx) => {
+    const visibility = dto.visibility ?? MessageVisibility.PUBLIC;
+    const message = await this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticket.findUnique({ where: { id } });
       if (!ticket) {
         throw new NotFoundException('TICKET_NOT_FOUND');
       }
 
-      const message = await tx.message.create({
+      const created = await tx.message.create({
         data: {
           ticketId: id,
           body: dto.body,
-          visibility: dto.visibility ?? MessageVisibility.PUBLIC,
+          visibility,
           authorAgentId: agentId,
         },
       });
@@ -209,7 +297,12 @@ export class TicketsService {
           actorAgentId: agentId,
         },
       });
-      return message;
+      return created;
     });
+
+    if (visibility === MessageVisibility.PUBLIC) {
+      await this.slaClocks.complete(id, SlaClockKind.FIRST_RESPONSE);
+    }
+    return message;
   }
 }

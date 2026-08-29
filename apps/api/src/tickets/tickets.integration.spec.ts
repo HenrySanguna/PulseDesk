@@ -9,6 +9,7 @@ import {
 } from '@pulsedesk/db';
 import { seedTestAgent } from '../auth/test-fakes.js';
 import type { AssignmentQueuePort } from '../sla/assignment-queue.service.js';
+import type { SlaClockPort } from '../sla/sla-clock.service.js';
 import { TicketsService } from './tickets.service.js';
 
 /** Ticket-domain integration tests don't exercise auto-assignment (that's
@@ -16,6 +17,27 @@ import { TicketsService } from './tickets.service.js';
  * no-op fake keeps `createTicket` from touching real BullMQ/Valkey here. */
 function makeAssignmentQueue(): AssignmentQueuePort {
   return { enqueueAutoAssign: async () => undefined };
+}
+
+/** SLA-clock wiring is proven end-to-end (real Postgres + real Valkey) in
+ * `tickets-sla-wiring.integration.spec.ts` — a no-op fake here keeps this
+ * file focused on ticket-domain behavior (queue ordering, claim atomicity,
+ * message visibility) without requiring real `SlaClock` rows for tickets
+ * seeded via the raw `prisma.ticket.create` helper below. `start`/
+ * `reactivate` throw if actually invoked — no test in this file exercises
+ * `createTicket` or a reopen transition, so a call would signal a real bug,
+ * not a legitimate path. */
+function makeSlaClocks(): SlaClockPort {
+  const unexpected = (): never => {
+    throw new Error('SlaClockPort.start/reactivate unexpectedly called in tickets.integration.spec.ts');
+  };
+  return {
+    start: async () => unexpected(),
+    pause: async () => [],
+    resume: async () => [],
+    complete: async () => null,
+    reactivate: async () => unexpected(),
+  };
 }
 
 /**
@@ -28,7 +50,7 @@ function makeAssignmentQueue(): AssignmentQueuePort {
  */
 describe('TicketsService (real Postgres)', () => {
   const prisma = new PrismaService();
-  const service = new TicketsService(prisma, makeAssignmentQueue());
+  const service = new TicketsService(prisma, makeAssignmentQueue(), makeSlaClocks());
   const suffix = `tix-${Date.now()}`;
   const customerId = crypto.randomUUID();
   const agentAId = crypto.randomUUID();

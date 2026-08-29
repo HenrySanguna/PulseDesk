@@ -8,13 +8,25 @@ import { SlaClockConflictException } from './sla-clock-conflict.exception.js';
 import { SlaClockRepository } from './sla-clock.repository.js';
 import { SlaQueueService } from './sla-queue.service.js';
 
+/** The subset of `SlaClockService` `TicketsService` needs to wire ticket
+ * creation and status/message transitions to SLA clocks — narrowed so unit
+ * tests can pass a plain fake instead of a real `SlaClockService`, matching
+ * the `AssignmentQueuePort` pattern in `assignment-queue.service.ts`. */
+export interface SlaClockPort {
+  start(ticketId: string, kind: SlaClockKind, targetMinutes: number): Promise<SlaClock>;
+  pause(ticketId: string): Promise<SlaClock[]>;
+  resume(ticketId: string): Promise<SlaClock[]>;
+  complete(ticketId: string, kind: SlaClockKind): Promise<SlaClock | null>;
+  reactivate(ticketId: string, kind: SlaClockKind): Promise<SlaClock>;
+}
+
 /**
  * Owns every `SlaClock` state transition (tasks.md section 3) and the
  * matching `sla` queue side effect. Consumers (`SlaConsumer`,
  * `SlaSweepConsumer`) stay thin: they only call `breach()`.
  */
 @Injectable()
-export class SlaClockService {
+export class SlaClockService implements SlaClockPort {
   constructor(
     private readonly repo: SlaClockRepository,
     private readonly calendars: BusinessCalendarRepository,
@@ -116,7 +128,16 @@ export class SlaClockService {
    * by checking `completedAt` before writing, so resolving an already
    * resolved ticket (or a retried caller) is a safe no-op. Cancels the due
    * job so it never fires after completion. Returns `null` if no such
-   * clock exists (nothing to complete). */
+   * clock exists (nothing to complete).
+   *
+   * Folds elapsed business time since `activeSince` into `consumedMinutes`
+   * first — same bookkeeping `pauseOne` does — unless the clock is already
+   * paused (in which case `consumedMinutes` already reflects everything up
+   * to `pausedAt` and `activeSince` is stale). Without this, a clock
+   * completed without ever being paused keeps `consumedMinutes` at 0
+   * forever, so a later `reactivate()` (ticket reopen) would recompute
+   * "remaining" as nearly the full original budget instead of what's
+   * actually left. */
   async complete(ticketId: string, kind: SlaClockKind): Promise<SlaClock | null> {
     const clock = await this.repo.findByTicketAndKind(ticketId, kind);
     if (!clock) {
@@ -125,11 +146,50 @@ export class SlaClockService {
     if (clock.completedAt) {
       return clock;
     }
+    const now = new Date();
+    let consumedMinutes = clock.consumedMinutes;
+    if (!clock.pausedAt) {
+      const calendar = await this.calendars.getActive();
+      consumedMinutes += Math.round(businessMinutesBetween(clock.activeSince, now, calendar));
+    }
     const updated = await this.repo.update(clock.id, clock.version, {
-      completedAt: new Date(),
+      consumedMinutes,
+      completedAt: now,
       dueAt: null,
     });
     await this.slaQueue.cancelDueJob(clock);
+    return updated;
+  }
+
+  /** Reactivates the `kind` clock for `ticketId` on ticket reopen
+   * (RESOLVED/CLOSED -> OPEN, see openspec/changes/04-add-sla-jobs
+   * tasks.md "Definición de terminado"). `@@unique([ticketId, kind])`
+   * forbids a second row for the same ticket/kind, so a reopen must reuse
+   * the existing completed clock row rather than create a new one — unlike
+   * `resume()`, which only looks at `findPausedByTicket` and would never
+   * find a completed clock. Clears `completedAt`/`breachedAt`/`pausedAt`
+   * (a clock can be both paused AND completed if it was resolved while
+   * paused — see `complete()`), recomputes `dueAt` from the remaining
+   * business minutes (same `Math.max(targetMinutes - consumedMinutes, 0)`
+   * plus `addBusinessMinutes` math `resumeOne` uses), and reschedules the
+   * due job. If the clock had already breached before completion, the
+   * remaining minutes can clamp to 0, so the job fires immediately — that
+   * is correct, the ticket is still over its original SLA. Throws
+   * `NotFoundException` if no clock exists for `ticketId`/`kind`. */
+  async reactivate(ticketId: string, kind: SlaClockKind): Promise<SlaClock> {
+    const clock = await this.findByTicketAndKind(ticketId, kind);
+    const calendar = await this.calendars.getActive();
+    const now = new Date();
+    const remaining = Math.max(clock.targetMinutes - clock.consumedMinutes, 0);
+    const dueAt = addBusinessMinutes(now, remaining, calendar);
+    const updated = await this.repo.update(clock.id, clock.version, {
+      completedAt: null,
+      breachedAt: null,
+      pausedAt: null,
+      activeSince: now,
+      dueAt,
+    });
+    await this.slaQueue.scheduleDueJob(updated, dueAt);
     return updated;
   }
 

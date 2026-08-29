@@ -3,10 +3,21 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '@pulsedesk/db';
 import { TicketStatus } from '@pulsedesk/db';
 import type { AssignmentQueuePort } from '../sla/assignment-queue.service.js';
+import type { SlaClockPort } from '../sla/sla-clock.service.js';
 import { TicketsService } from './tickets.service.js';
 
 function makeAssignmentQueue(): AssignmentQueuePort {
   return { enqueueAutoAssign: vi.fn().mockResolvedValue(undefined) };
+}
+
+function makeSlaClocks(): SlaClockPort {
+  return {
+    start: vi.fn().mockResolvedValue(undefined),
+    pause: vi.fn().mockResolvedValue([]),
+    resume: vi.fn().mockResolvedValue([]),
+    complete: vi.fn().mockResolvedValue(null),
+    reactivate: vi.fn().mockResolvedValue(undefined),
+  };
 }
 
 function makePrisma(): PrismaService {
@@ -32,7 +43,7 @@ function makePrisma(): PrismaService {
 describe('TicketsService (mocked Prisma)', () => {
   it('listTickets builds a WHERE clause only from the filters actually provided, and paginates', async () => {
     const prisma = makePrisma();
-    const service = new TicketsService(prisma, makeAssignmentQueue());
+    const service = new TicketsService(prisma, makeAssignmentQueue(), makeSlaClocks());
 
     await service.listTickets({ status: TicketStatus.OPEN, page: 2, pageSize: 10 });
 
@@ -51,7 +62,7 @@ describe('TicketsService (mocked Prisma)', () => {
     (prisma.ticket.updateMany as ReturnType<typeof vi.fn>).mockResolvedValue({
       count: 0,
     });
-    const service = new TicketsService(prisma, makeAssignmentQueue());
+    const service = new TicketsService(prisma, makeAssignmentQueue(), makeSlaClocks());
 
     await expect(
       service.claimTicket('ticket-1', 'agent-1'),
@@ -67,7 +78,7 @@ describe('TicketsService (mocked Prisma)', () => {
     (
       prisma.ticket.findUniqueOrThrow as ReturnType<typeof vi.fn>
     ).mockResolvedValue({ id: 'ticket-1', status: TicketStatus.OPEN });
-    const service = new TicketsService(prisma, makeAssignmentQueue());
+    const service = new TicketsService(prisma, makeAssignmentQueue(), makeSlaClocks());
 
     const ticket = await service.claimTicket('ticket-1', 'agent-1');
 

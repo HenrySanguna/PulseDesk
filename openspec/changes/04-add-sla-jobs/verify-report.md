@@ -14,6 +14,8 @@ build_exit_code: 0
 build_output_hash: sha256:fba3f23ca445ff4fdfdddb28faae2981c6c8e40128a3c56d42ed83cb4bce90f9
 ```
 
+**Superseded by the Addendum at the end of this document** — the SlaPolicy-attachment gap (WARNING 1 below) was closed in a follow-up batch after the user made the product decision, 20/20 tasks now complete, verdict PASS. Everything above and immediately below this point is the original report for the 19/20 state and is kept verbatim for history.
+
 ## Verification Report
 
 **Change**: 04-add-sla-jobs
@@ -133,3 +135,35 @@ SUGGESTION:
 PASS WITH WARNINGS
 
 19 of the 20 checklist items (18 numbered tasks plus 1 of 2 Definicion de terminado items) are complete and independently re-verified against the actual dirty working tree (no commit exists yet for this change): 6/6 spec requirements and 8/8 scenarios have real, passing, specifically-named covering tests against real Postgres/Valkey/BullMQ; pnpm exec nx run-many -t lint build -p api,db,contracts,sla-engine is green (exit 0, two independent runs); pnpm exec vitest run apps/api libs/db libs/contracts libs/sla-engine independently reproduces the claimed 34 files / 164 tests (exit 0, two independent runs); the migration was independently confirmed applied and idempotently re-appliable against a real database; and the worker/apps-topology deviation was independently confirmed to be a real, pre-existing, documented adaptation whose claimed distributed-systems properties (idempotent job execution, optimistic-lock version conflicts, crash recovery via sla:sweep) are genuinely proven by tests that do not depend on process topology. Two WARNINGs are recorded, the one intentionally-open Definicion de terminado item (SlaPolicy-to-Ticket attachment, a real unscoped product decision) and proposal.md/design.md drifting from the actual worker-topology reality, plus two non-blocking SUGGESTIONs. sdd-archive should proceed for the 19/20 implemented and verified scope, but a human product decision on SlaPolicy attachment is required before the Definicion de terminado gap itself can be closed; this verify pass intentionally does not resolve it.
+
+---
+
+## Addendum: SlaPolicy attachment closed (20/20), one real bug found and fixed
+
+**Date**: 2026-08-29 (same day, later). **Base**: HEAD `1012a63` (WARNING 1's implementation committed on top of it, this addendum's fixes are still uncommitted at time of writing).
+
+The user made the two product decisions WARNING 1 required: (1) seed 4 fixed `SlaPolicy` rows once via data migration, auto-assign `slaPolicyId` by `priority` on ticket creation, start both clocks together; (2) pause/resume/complete wired per standard helpdesk SLA behavior (OPEN\<-\>PENDING pause/resume, first public agent message completes FIRST_RESPONSE, -\>RESOLVED completes RESOLUTION, reopen reactivates the existing RESOLUTION clock row). `sdd-apply` implemented this (2 new migrations, `SlaClockService.reactivate()`, `TicketsService` wiring, 8 new tests in `tickets-sla-wiring.integration.spec.ts`, 39/40 -\> 40/40).
+
+**Independent re-verification found a real correctness bug in that implementation**, not present in the originally-verified 19/20 scope: `SlaClockService.complete()` never folded elapsed active time into `consumedMinutes` (only `pause()` did). A `RESOLUTION` clock resolved without ever being paused kept `consumedMinutes` at 0 forever, so `reactivate()` (on ticket reopen) would recompute "remaining" as nearly the full original budget instead of what was actually left — silently discarding whatever business time had already elapsed before the first resolution. Confirmed by reading `complete()`'s implementation directly and tracing `reactivate()`'s `targetMinutes - consumedMinutes` math against it, not by trusting the apply report.
+
+**Fix applied** (still in the working tree, not committed): `complete()` now folds `businessMinutesBetween(activeSince, now)` into `consumedMinutes` before completing, mirroring `pauseOne()`'s existing bookkeeping, skipped only when the clock is already paused (its `consumedMinutes` already reflects everything up to `pausedAt`). Two tests in `tickets-sla-wiring.integration.spec.ts` that manually seed `consumedMinutes` via direct Prisma writes (simulating "already X minutes consumed") were updated to also reset `activeSince: new Date()` at the same time, so they stay deterministic under the corrected fold-in behavior instead of becoming timing-flaky.
+
+**Re-verification evidence** (Linux container on `pulsedesk_default`, same P1000-Windows workaround as every prior change; Prisma client explicitly regenerated with `prisma generate --schema libs/db/prisma/schema` before each run — the deps-stage Docker image's `libs/db/src/generated` was found stale/host-copied and pnpm 10's script-ignore policy blocks its own automatic regeneration, an environment quirk unrelated to the code fix, worked around by generating explicitly):
+- `pnpm exec vitest run apps/api/src/sla apps/api/src/tickets` -\> 10 files / 51 tests, all passing, exit 0 (includes both reopen/reactivate tests with corrected, non-flaky assertions).
+- `pnpm exec vitest run apps/api libs/db libs/contracts libs/sla-engine` (full backend suite) -\> 35 files / 174 tests, all passing, exit 0, zero regressions.
+- `pnpm exec nx run-many -t lint build -p api,db,contracts,sla-engine` -\> exit 0, same pre-existing unrelated warnings only (nestjs/throttler source maps, optional pg-native).
+
+### Updated Completeness
+| Metric | Value |
+|--------|-------|
+| Tasks total | 18 (+2 Definicion de terminado items) |
+| Tasks complete | 20/20 |
+| Tasks incomplete | 0 |
+
+### Updated Issues Found
+- WARNING 1 (SlaPolicy attachment gap): **RESOLVED** — implemented per the user's explicit product decisions above, re-verified against real Postgres/Valkey, one real bug found in that same implementation and fixed (see above).
+- WARNING 2 (proposal.md/design.md worker-topology drift): still open, non-blocking, unchanged from the original report — still worth a documentation-only follow-up.
+- New SUGGESTION: `reactivate()`'s remaining-minutes math depends entirely on `consumedMinutes` being accurate at completion time, which now depends on `complete()`'s calendar lookup being correct; there is no test asserting the exact folded-in-minutes value for a clock completed mid-flight (only that reopening later produces a sane, non-negative `dueAt`) — a direct unit-level assertion on `complete()`'s returned `consumedMinutes` would make this bookkeeping self-evident without relying on the downstream `reactivate()` test to catch a regression.
+
+### Updated Verdict
+**PASS.** All 20/20 tasks/DoD items complete and independently re-verified against the actual working tree. 0 CRITICAL. 1 non-blocking WARNING remaining (documentation drift, not a code defect). Ready for `sdd-archive` once this addendum's fix is committed.
