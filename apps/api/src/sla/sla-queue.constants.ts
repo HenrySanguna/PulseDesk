@@ -17,18 +17,22 @@ export const SLA_SWEEP_REPEAT_MS = 5 * 60 * 1000;
 
 /**
  * Deterministic job id for a clock's point-in-time due job — design.md's
- * exact `jobId` layer-1 idempotency scheme: `sla:${clockId}:${targetMinutes}`.
+ * exact `jobId` layer-1 idempotency scheme: `sla-${clockId}-${targetMinutes}`.
  * `targetMinutes` never changes across pause/resume for the same clock, so
  * this id is stable for the clock's whole lifetime — cancel-then-reschedule
  * during a pause/resume cycle always reuses the same slot instead of
  * leaking a new id per reschedule.
+ *
+ * `-`, not `:` — BullMQ rejects a custom `jobId` containing `:` (its own
+ * Redis key-namespace separator).
  */
 export function slaDueJobId(clockId: string, targetMinutes: number): string {
-  return `sla:${clockId}:${targetMinutes}`;
+  return `sla-${clockId}-${targetMinutes}`;
 }
 
 /** Deterministic job id for a ticket's auto-assignment job — one
- * outstanding auto-assign attempt per ticket at a time. */
+ * outstanding auto-assign attempt per ticket at a time. Same `-` separator
+ * rationale as `slaDueJobId`. */
 export function assignmentJobId(ticketId: string): string {
-  return `assignment:${ticketId}`;
+  return `assignment-${ticketId}`;
 }
