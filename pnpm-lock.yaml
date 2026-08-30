@@ -105,6 +105,9 @@ importers:
       '@angular/language-service':
         specifier: ~22.0.4
         version: 22.0.8
+      '@cloudflare/workers-types':
+        specifier: ^5.20260830.1
+        version: 5.20260830.1
       '@eslint/js':
         specifier: ^9.8.0
         version: 9.39.5
@@ -1313,6 +1316,9 @@ packages:
 
   '@bufbuild/protobuf@2.14.0':
     resolution: {integrity: sha512-C3UGsiCwSprE2NKIIFA3hCDlpXTMCAXRZuEVp88L1GY36Y41+rYL5fryE+nOFhp4p4JPQvdV8PQ4DWgHgeTE+w==}
+
+  '@cloudflare/workers-types@5.20260830.1':
+    resolution: {integrity: sha512-LBn0wg8kmCbdriUYmz6BSm4ukjFinU4iYGYuBTPaSG6malMhbIFk7Az1gcsFuvBYva2yHxUZFirCwjQY7yBN9A==}
 
   '@colordx/core@5.6.0':
     resolution: {integrity: sha512-EDlcg/Hmlj1WuFh/Os9YhA+A2aasB2XlgwFfGePUDuW7fVHC07HBi5AFIMx0Ct1eM8kHM9NRyOtZ0MuVYa8xvg==}
@@ -10167,6 +10173,8 @@ snapshots:
   '@borewit/text-codec@0.2.2': {}
 
   '@bufbuild/protobuf@2.14.0': {}
+
+  '@cloudflare/workers-types@5.20260830.1': {}
 
   '@colordx/core@5.6.0': {}
 
