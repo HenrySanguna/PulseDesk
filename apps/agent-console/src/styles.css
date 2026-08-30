@@ -2,7 +2,22 @@
 
 @layer tailwind-base, primeng, tailwind-utilities;
 
+@import '../../../libs/ui/src/styles/tokens.css' layer(tailwind-base);
 @import 'tailwindcss/theme.css' layer(tailwind-base);
 @import 'tailwindcss/utilities.css' layer(tailwind-utilities);
 
 @import 'tailwindcss-primeui';
+
+@layer tailwind-base {
+  :root {
+    /* Forces every PrimeNG `light-dark()` semantic token to its dark
+     * branch — the agent console is dark-only, no toggle. */
+    color-scheme: dark;
+  }
+
+  body {
+    background: #0b0f14;
+    color: #e7edf2;
+    font-family: var(--font-sans);
+  }
+}

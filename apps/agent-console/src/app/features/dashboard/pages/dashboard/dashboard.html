@@ -2,31 +2,23 @@
   <div class="flex items-center justify-between">
     <h1 class="text-xl font-semibold">Dashboard</h1>
     <div class="flex items-center gap-3">
-      <span
-        class="flex items-center gap-1 text-sm"
-        [class.text-green-700]="store.connected()"
-        [class.text-surface-600]="!store.connected()"
-      >
-        <span
-          class="h-2 w-2 rounded-full"
-          [class.bg-green-500]="store.connected()"
-          [class.bg-surface-300]="!store.connected()"
-        ></span>
-        {{ store.connected() ? 'Live' : 'Reconnecting…' }}
-      </span>
+      <pd-pulse-trace
+        [connected]="store.connected()"
+        [label]="store.connected() ? 'Live' : 'Reconnecting…'"
+      />
       <pd-button label="Go to queue" (clicked)="goToQueue()" />
     </div>
   </div>
 
   @if (store.error(); as error) {
-    <p class="text-sm text-red-600" role="alert">{{ error }}</p>
+    <p class="text-sm text-critical" role="alert">{{ error }}</p>
   }
 
   @if (store.snapshot(); as snapshot) {
     @if (snapshot.atRiskCount > 0) {
       <p
         role="alert"
-        class="flex items-center gap-2 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+        class="flex items-center gap-2 rounded-lg border border-critical/30 bg-critical/10 px-4 py-3 text-sm font-medium text-critical"
       >
         <span aria-hidden="true">⚠️</span>
         {{ snapshot.atRiskCount }}
@@ -36,56 +28,66 @@
     }
 
     <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-      <div class="rounded border border-surface-200 p-4">
-        <p class="text-sm text-surface-600">Total</p>
-        <p class="text-2xl font-semibold">{{ snapshot.totalTickets }}</p>
+      <div class="rounded-lg border border-surface-700 bg-surface-900 p-4">
+        <p class="text-sm text-surface-400">Total</p>
+        <p class="pd-tabular-nums font-mono text-2xl font-semibold">{{ snapshot.totalTickets }}</p>
       </div>
-      <div class="rounded border border-surface-200 p-4">
-        <p class="text-sm text-surface-600">New</p>
-        <p class="text-2xl font-semibold">{{ snapshot.newCount }}</p>
+      <div class="rounded-lg border border-surface-700 bg-surface-900 p-4">
+        <p class="text-sm text-surface-400">New</p>
+        <p class="pd-tabular-nums font-mono text-2xl font-semibold">{{ snapshot.newCount }}</p>
       </div>
-      <div class="rounded border border-surface-200 p-4">
-        <p class="text-sm text-surface-600">Open</p>
-        <p class="text-2xl font-semibold">{{ snapshot.openCount }}</p>
+      <div class="rounded-lg border border-surface-700 bg-surface-900 p-4">
+        <p class="text-sm text-surface-400">Open</p>
+        <p class="pd-tabular-nums font-mono text-2xl font-semibold">{{ snapshot.openCount }}</p>
       </div>
-      <div class="rounded border border-surface-200 p-4">
-        <p class="text-sm text-surface-600">Pending</p>
-        <p class="text-2xl font-semibold">{{ snapshot.pendingCount }}</p>
+      <div class="rounded-lg border border-surface-700 bg-surface-900 p-4">
+        <p class="text-sm text-surface-400">Pending</p>
+        <p class="pd-tabular-nums font-mono text-2xl font-semibold">{{ snapshot.pendingCount }}</p>
       </div>
-      <div class="rounded border border-surface-200 p-4">
-        <p class="text-sm text-surface-600">Resolved</p>
-        <p class="text-2xl font-semibold">{{ snapshot.resolvedCount }}</p>
+      <div class="rounded-lg border border-surface-700 bg-surface-900 p-4">
+        <p class="text-sm text-surface-400">Resolved</p>
+        <p class="pd-tabular-nums font-mono text-2xl font-semibold">{{ snapshot.resolvedCount }}</p>
       </div>
-      <div class="rounded border border-red-200 bg-red-50 p-4">
-        <p class="text-sm text-red-700">At risk</p>
-        <p class="text-2xl font-semibold text-red-700">{{ snapshot.atRiskCount }}</p>
+      <div
+        class="rounded-lg border p-4"
+        [class]="snapshot.atRiskCount > 0 ? 'border-critical bg-critical/10' : 'border-surface-700 bg-surface-900'"
+      >
+        <p class="text-sm" [class.text-critical]="snapshot.atRiskCount > 0" [class.text-surface-400]="snapshot.atRiskCount === 0">
+          At risk
+        </p>
+        <p
+          class="pd-tabular-nums font-mono text-2xl font-semibold"
+          [class.text-critical]="snapshot.atRiskCount > 0"
+        >
+          {{ snapshot.atRiskCount }}
+        </p>
       </div>
     </div>
 
     <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
-      <div class="rounded border border-surface-200 p-4">
-        <p class="text-sm text-surface-600">First response — median</p>
-        <p class="text-lg font-medium">
+      <div class="rounded-lg border border-surface-700 bg-surface-900 p-4">
+        <p class="text-sm text-surface-400">First response — median</p>
+        <p class="pd-tabular-nums font-mono text-lg font-medium">
           {{ snapshot.firstResponseP50Minutes !== null ? (snapshot.firstResponseP50Minutes | number: '1.0-1') + ' min' : '—' }}
         </p>
       </div>
-      <div class="rounded border border-surface-200 p-4">
-        <p class="text-sm text-surface-600">First response — p90</p>
-        <p class="text-lg font-medium">
+      <div class="rounded-lg border border-surface-700 bg-surface-900 p-4">
+        <p class="text-sm text-surface-400">First response — p90</p>
+        <p class="pd-tabular-nums font-mono text-lg font-medium">
           {{ snapshot.firstResponseP90Minutes !== null ? (snapshot.firstResponseP90Minutes | number: '1.0-1') + ' min' : '—' }}
         </p>
       </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <div class="rounded border border-surface-200 p-4">
-        <h2 class="mb-3 text-sm font-medium text-surface-600">Tickets by status</h2>
+      <div class="rounded-lg border border-surface-700 bg-surface-900 p-4">
+        <h2 class="mb-3 text-sm font-medium text-surface-400">Tickets by status</h2>
         @if (statusChartData(); as data) {
           <pd-chart type="doughnut" [data]="data" ariaLabel="Tickets by status" />
         }
       </div>
-      <div class="rounded border border-surface-200 p-4">
-        <h2 class="mb-3 text-sm font-medium text-surface-600">Agent load vs. capacity</h2>
+      <div class="rounded-lg border border-surface-700 bg-surface-900 p-4">
+        <h2 class="mb-3 text-sm font-medium text-surface-400">Agent load vs. capacity</h2>
         @if (agentLoadChartData(); as data) {
           @if (store.agentLoad()?.length) {
             <pd-chart type="bar" [data]="data" ariaLabel="Agent load versus capacity" />
@@ -98,6 +100,6 @@
       </div>
     </div>
   } @else {
-    <p class="text-sm text-surface-600" role="status">Loading dashboard…</p>
+    <p class="text-sm text-surface-400" role="status">Loading dashboard…</p>
   }
 </div>

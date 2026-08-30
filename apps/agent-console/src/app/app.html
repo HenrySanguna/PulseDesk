@@ -1,12 +1,16 @@
 @if (authStore.agent(); as agent) {
-  <nav class="flex items-center gap-4 border-b border-surface-200 px-6 py-3 text-sm">
-    <a routerLink="/tickets" routerLinkActive="font-semibold text-primary-600" class="hover:underline">
+  <nav class="flex items-center gap-5 border-b border-surface-700 bg-surface-900 px-6 py-3 text-sm">
+    <span class="flex items-center gap-2 font-mono font-semibold tracking-tight text-pulse">
+      <pd-pulse-trace [connected]="true" label="" />
+      PulseDesk
+    </span>
+    <a routerLink="/tickets" routerLinkActive="font-semibold text-primary-300" class="text-surface-400 hover:text-surface-0">
       Queue
     </a>
-    <a routerLink="/dashboard" routerLinkActive="font-semibold text-primary-600" class="hover:underline">
+    <a routerLink="/dashboard" routerLinkActive="font-semibold text-primary-300" class="text-surface-400 hover:text-surface-0">
       Dashboard
     </a>
-    <span class="ml-auto text-surface-500">{{ agent.email }}</span>
+    <span class="ml-auto font-mono text-surface-400">{{ agent.email }}</span>
   </nav>
 }
 <router-outlet></router-outlet>

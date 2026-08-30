@@ -1,7 +1,7 @@
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { PdButton, PdChart } from '@pulsedesk/ui';
+import { PdButton, PdChart, PdPulseTrace } from '@pulsedesk/ui';
 import {
   buildAgentLoadChartData,
   buildStatusBreakdownChartData,
@@ -11,7 +11,7 @@ import { DashboardStore } from '../../services/dashboard.store';
 @Component({
   selector: 'pd-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, PdButton, PdChart],
+  imports: [DecimalPipe, PdButton, PdChart, PdPulseTrace],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })

@@ -1,8 +1,8 @@
 @if (store.loading() && !store.ticket()) {
-  <p class="p-6 text-surface-500" role="status">Loading ticket…</p>
+  <p class="p-6 text-surface-400" role="status">Loading ticket…</p>
 } @else if (store.error(); as error) {
   <div class="flex flex-col gap-3 p-6">
-    <p class="text-red-600" role="alert">{{ error }}</p>
+    <p class="text-critical" role="alert">{{ error }}</p>
     <pd-button label="Back to queue" (clicked)="backToQueue()" />
   </div>
 } @else if (store.ticket(); as ticket) {
@@ -16,7 +16,7 @@
       />
     </div>
 
-    <header class="flex flex-col gap-3 rounded border border-surface-200 p-4">
+    <header class="flex flex-col gap-3 rounded-lg border border-surface-700 bg-surface-900 p-4">
       <div class="flex items-start justify-between gap-4">
         <h1 class="text-xl font-semibold">{{ ticket.subject }}</h1>
         <div class="flex gap-2">
@@ -31,10 +31,10 @@
         </div>
       </div>
 
-      <dl class="grid grid-cols-2 gap-2 text-sm text-surface-600 sm:grid-cols-4">
+      <dl class="grid grid-cols-2 gap-2 text-sm text-surface-400 sm:grid-cols-4">
         <div>
           <dt class="font-medium">Assignee</dt>
-          <dd>{{ ticket.assigneeId ?? 'Unassigned' }}</dd>
+          <dd class="font-mono">{{ ticket.assigneeId ?? 'Unassigned' }}</dd>
         </div>
         <div>
           <dt class="font-medium">Created</dt>
@@ -47,13 +47,13 @@
       </dl>
 
       @if (store.actionError(); as actionError) {
-        <p class="text-sm text-red-600" role="alert">{{ actionError }}</p>
+        <p class="text-sm text-critical" role="alert">{{ actionError }}</p>
       }
 
       @if (otherAgentsViewing().length > 0) {
         <p
           role="status"
-          class="flex items-center gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+          class="flex items-center gap-2 rounded-lg border border-risk/30 bg-risk/10 px-3 py-2 text-sm text-risk"
         >
           <span aria-hidden="true">👀</span>
           {{ otherAgentsViewing().length }}
@@ -84,19 +84,23 @@
       </div>
     </header>
 
-    <section class="flex flex-col gap-3">
+    <!-- Conversation thread: deliberately the one light surface in an
+         otherwise dark shell — long-form reading stays on neutral-*
+         (unthemed, always-light) utilities rather than surface-* so it
+         can't be pulled dark by the app-wide preset. -->
+    <section class="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-neutral-900">
       <h2 class="text-lg font-medium">Messages</h2>
       @if (ticket.messages.length === 0) {
-        <p class="text-sm text-surface-500">No messages yet.</p>
+        <p class="text-sm text-neutral-500">No messages yet.</p>
       }
       @for (message of ticket.messages; track message.id) {
-        <article class="rounded border border-surface-200 p-3">
+        <article class="rounded border border-neutral-200 bg-white p-3">
           <div class="mb-1 flex items-center justify-between">
             <pd-tag
               [value]="message.visibility"
               [severity]="visibilitySeverity[message.visibility]"
             />
-            <span class="text-xs text-surface-500">{{
+            <span class="text-xs text-neutral-500">{{
               message.createdAt | date: 'short'
             }}</span>
           </div>
@@ -106,41 +110,33 @@
     </section>
 
     @if (ticket.conversationId) {
-      <section class="flex flex-col gap-3 rounded border border-surface-200 p-4">
+      <section class="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-neutral-900">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-medium">Live activity</h2>
-          <span
-            class="flex items-center gap-1 text-xs"
-            [class.text-green-700]="conversation.connected()"
-            [class.text-surface-600]="!conversation.connected()"
-          >
-            <span
-              class="h-2 w-2 rounded-full"
-              [class.bg-green-500]="conversation.connected()"
-              [class.bg-surface-300]="!conversation.connected()"
-            ></span>
-            {{ conversation.connected() ? 'Live' : 'Reconnecting…' }}
-          </span>
+          <pd-pulse-trace
+            [connected]="conversation.connected()"
+            [label]="conversation.connected() ? 'Live' : 'Reconnecting…'"
+          />
         </div>
 
         @if (conversation.typingFrom(); as typing) {
-          <p class="text-sm italic text-surface-500">
+          <p class="text-sm italic text-neutral-500">
             {{ typing.kind === 'widget' ? 'The customer' : 'An agent' }} is typing…
           </p>
         }
 
         @if (conversation.messages().length === 0) {
-          <p class="text-sm text-surface-500">
+          <p class="text-sm text-neutral-500">
             No new messages since this page was opened.
           </p>
         } @else {
           @for (message of conversation.messages(); track message.id) {
-            <article class="rounded border border-surface-100 bg-surface-50 p-3">
+            <article class="rounded border border-neutral-100 bg-white p-3">
               <div class="mb-1 flex items-center justify-between">
-                <span class="text-xs font-medium text-surface-600">{{
+                <span class="text-xs font-medium text-neutral-600">{{
                   message.authorAgentId ? 'Agent' : 'Customer'
                 }}</span>
-                <span class="text-xs text-surface-500">{{
+                <span class="text-xs text-neutral-500">{{
                   message.createdAt | date: 'short'
                 }}</span>
               </div>
@@ -151,7 +147,7 @@
       </section>
     }
 
-    <section class="flex flex-col gap-3 rounded border border-surface-200 p-4">
+    <section class="flex flex-col gap-3 rounded-lg border border-surface-700 bg-surface-900 p-4">
       <h2 class="text-lg font-medium">Reply</h2>
       <pd-textarea
         [rows]="4"
@@ -165,7 +161,7 @@
         <ul
           role="listbox"
           aria-label="Canned response suggestions"
-          class="flex flex-col gap-1 rounded border border-surface-200 p-1"
+          class="flex list-none flex-col gap-1 rounded-lg border border-surface-700 bg-surface-950 p-1"
         >
           @for (suggestion of shortcutSuggestions(); track suggestion.id) {
             <li role="presentation">
@@ -173,11 +169,11 @@
                 type="button"
                 role="option"
                 [attr.aria-selected]="false"
-                class="w-full rounded px-2 py-1 text-left text-sm hover:bg-surface-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+                class="w-full rounded bg-transparent px-2 py-1 text-left text-sm transition-colors duration-150 ease-out hover:bg-surface-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-400"
                 (click)="applyShortcutSuggestion(suggestion)"
               >
-                <span class="font-medium">/{{ suggestion.shortcut }}</span>
-                <span class="text-surface-500"> — {{ suggestion.title }}</span>
+                <span class="font-mono font-medium text-pulse">/{{ suggestion.shortcut }}</span>
+                <span class="text-surface-400"> — {{ suggestion.title }}</span>
               </button>
             </li>
           }

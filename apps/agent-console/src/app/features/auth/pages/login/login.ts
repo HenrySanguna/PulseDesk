@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { PdButton, PdInputText } from '@pulsedesk/ui';
+import { PdButton, PdInputText, PdPulseTrace } from '@pulsedesk/ui';
 import { AuthStore } from '../../services/auth.store';
 
 @Component({
   selector: 'pd-login',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PdButton, PdInputText],
+  imports: [PdButton, PdInputText, PdPulseTrace],
   templateUrl: './login.html',
 })
 export class Login {

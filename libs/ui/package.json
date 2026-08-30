@@ -11,6 +11,16 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./theme": {
+      "types": "./src/theme/pulse-preset.ts",
+      "import": "./src/theme/pulse-preset.ts",
+      "default": "./src/theme/pulse-preset.ts"
+    },
+    "./pulse-trace": {
+      "types": "./src/lib/pulse-trace/pulse-trace.ts",
+      "import": "./src/lib/pulse-trace/pulse-trace.ts",
+      "default": "./src/lib/pulse-trace/pulse-trace.ts"
+    },
     "./package.json": "./package.json"
   },
   "dependencies": {

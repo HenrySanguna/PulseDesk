@@ -10,7 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { PdButton, PdSelect, PdTag, PdTextarea } from '@pulsedesk/ui';
+import { PdButton, PdPulseTrace, PdSelect, PdTag, PdTextarea } from '@pulsedesk/ui';
 import type { PdSelectOption } from '@pulsedesk/ui';
 import {
   MessageVisibility,
@@ -40,7 +40,7 @@ const MAX_SHORTCUT_SUGGESTIONS = 5;
 @Component({
   selector: 'pd-ticket-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, PdButton, PdSelect, PdTag, PdTextarea],
+  imports: [DatePipe, PdButton, PdPulseTrace, PdSelect, PdTag, PdTextarea],
   templateUrl: './ticket-detail.html',
   styleUrl: './ticket-detail.css',
 })

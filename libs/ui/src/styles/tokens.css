@@ -1,0 +1,42 @@
+/* Design system entry point shared by every app (agent-console, widget) so
+ * the palette/type scale is defined exactly once. "Dark control-room" is the
+ * only mode this product ships — see openspec design decision, no toggle. */
+
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-sans/700.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+@theme {
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* Vitals-monitor semantic accents. Named after what they mean, not their
+   * hue, so a future retint doesn't require renaming every call site. */
+  --color-pulse: #4df0a0; /* nominal / open / live */
+  --color-risk: #ffb020; /* at-risk / pending */
+  --color-critical: #ff3b5c; /* breach / urgent / error */
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+:root {
+  /* Forces every PrimeNG `light-dark()` token (see pulse-preset.ts) to its
+   * dark branch — this app has one visual mode, not a light/dark toggle. */
+  color-scheme: dark;
+}
+
+body {
+  background: #0b0f14;
+  color: #e7edf2;
+  font-family: var(--font-sans);
+}
+
+/* Live/loading numbers that update in place (SLA countdowns, dashboard
+ * stats) must not reflow the layout as digit widths change. */
+.pd-tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

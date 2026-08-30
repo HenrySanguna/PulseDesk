@@ -23,7 +23,7 @@ import { Textarea } from 'primeng/textarea';
       [rows]="rows()"
       [placeholder]="placeholder()"
       [attr.aria-label]="ariaLabel() || null"
-      class="w-full"
+      class="w-full {{ textareaClass() }}"
     ></textarea>
   `,
 })
@@ -35,6 +35,10 @@ export class PdTextarea {
    * consumer doesn't already associate a real `<label for>` with it (every
    * call site in this app today relies on a nearby visual label instead). */
   readonly ariaLabel = input('');
+  /** Extra Tailwind classes appended to the native `<textarea>` (e.g. a
+   * larger `rounded-*` for a call site that wants a softer, pill-like
+   * composer input than the shared default). Opt-in, empty by default. */
+  readonly textareaClass = input('');
   readonly value = model('');
 
   protected readonly control = new FormControl('', { nonNullable: true });

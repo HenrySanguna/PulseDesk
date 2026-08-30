@@ -1,12 +1,16 @@
 <div class="flex min-h-screen items-center justify-center p-6">
   <form
-    class="flex w-full max-w-sm flex-col gap-4 rounded border border-surface-200 p-6"
+    class="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-surface-700 bg-surface-900 p-6"
     (submit)="$event.preventDefault(); submit()"
   >
+    <div class="flex items-center gap-2 font-mono text-pulse">
+      <pd-pulse-trace [connected]="true" label="" />
+      <span class="text-xs font-semibold tracking-wide uppercase">PulseDesk</span>
+    </div>
     <h1 class="text-xl font-semibold">Sign in</h1>
 
     <div class="flex flex-col gap-1">
-      <label class="text-sm text-surface-600" for="email">Email</label>
+      <label class="text-sm text-surface-400" for="email">Email</label>
       <pd-input-text
         id="email"
         type="email"
@@ -17,7 +21,7 @@
     </div>
 
     <div class="flex flex-col gap-1">
-      <label class="text-sm text-surface-600" for="password">Password</label>
+      <label class="text-sm text-surface-400" for="password">Password</label>
       <pd-input-text
         id="password"
         type="password"
@@ -28,7 +32,7 @@
     </div>
 
     @if (store.error(); as error) {
-      <p class="text-sm text-red-600">{{ error }}</p>
+      <p class="text-sm text-critical">{{ error }}</p>
     }
 
     <pd-button

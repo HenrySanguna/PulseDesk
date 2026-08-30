@@ -1,7 +1,30 @@
-import type { InputSignal } from '@angular/core';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import type { InputSignal, Signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { UIChart } from 'primeng/chart';
 import type { ChartData, ChartOptions, ChartType } from 'chart.js';
+
+/** Chart.js draws on `<canvas>`, so it never inherits the page's CSS — every
+ * text/gridline color has to be passed explicitly, or it renders in
+ * Chart.js's own dark-on-transparent default, invisible against this app's
+ * dark surfaces. Every `pd-chart` gets these merged in as its base. */
+const DARK_THEME_DEFAULTS: ChartOptions = {
+  color: '#e7edf2',
+  plugins: {
+    legend: {
+      labels: { color: '#e7edf2' },
+    },
+  },
+  scales: {
+    x: {
+      ticks: { color: '#7c8a99' },
+      grid: { color: '#2e3841' },
+    },
+    y: {
+      ticks: { color: '#7c8a99' },
+      grid: { color: '#2e3841' },
+    },
+  },
+};
 
 /** Mirrors PrimeNG's `p-chart` `type` union without importing PrimeNG's
  * internal type path — same rationale as `PdButtonSeverity`/`PdTagSeverity`. */
@@ -26,7 +49,7 @@ export type PdChartType = ChartType;
     <p-chart
       [type]="type()"
       [data]="data()"
-      [options]="options()"
+      [options]="mergedOptions()"
       [ariaLabel]="ariaLabel()"
     />
   `,
@@ -40,4 +63,9 @@ export class PdChart {
   readonly data: InputSignal<ChartData> = input.required<ChartData>();
   readonly options: InputSignal<ChartOptions> = input<ChartOptions>({});
   readonly ariaLabel = input('');
+
+  protected readonly mergedOptions: Signal<ChartOptions> = computed(() => ({
+    ...DARK_THEME_DEFAULTS,
+    ...this.options(),
+  }));
 }
