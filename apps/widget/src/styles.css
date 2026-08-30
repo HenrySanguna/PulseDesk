@@ -2,7 +2,23 @@
 
 @layer tailwind-base, primeng, tailwind-utilities;
 
+@import '../../../libs/ui/src/styles/tokens.css' layer(tailwind-base);
 @import 'tailwindcss/theme.css' layer(tailwind-base);
 @import 'tailwindcss/utilities.css' layer(tailwind-utilities);
 
 @import 'tailwindcss-primeui';
+
+@layer tailwind-base {
+  :root {
+    /* Embedded in third-party pages — stays a light, low-contrast-with-the-
+     * host-page surface. Reads PrimeNG's own `light-dark()` semantic tokens
+     * off the same preset agent-console uses, just off its light branch. */
+    color-scheme: light;
+  }
+
+  body {
+    background: #fafaf9;
+    color: #1a1f24;
+    font-family: var(--font-sans);
+  }
+}

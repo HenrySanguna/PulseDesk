@@ -1,49 +1,55 @@
-<div class="mx-auto flex h-[600px] max-w-md flex-col gap-3 rounded border border-surface-200 p-4">
-  <div class="flex items-center justify-between">
+<div
+  class="mx-auto flex h-[600px] max-w-md flex-col gap-3 rounded-[20px] bg-white p-4 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.18)]"
+>
+  <div class="flex items-center justify-between border-b border-surface-100 pb-3">
     <h1 class="text-lg font-semibold">Chat with us</h1>
-    <span
-      class="flex items-center gap-1 text-xs"
-      [class.text-green-700]="store.connected()"
-      [class.text-surface-600]="!store.connected()"
-    >
-      <span
-        class="h-2 w-2 rounded-full"
-        [class.bg-green-500]="store.connected()"
-        [class.bg-surface-300]="!store.connected()"
-      ></span>
-      {{ store.connected() ? 'Connected' : 'Reconnecting…' }}
-    </span>
+    <pd-pulse-trace
+      [connected]="store.connected()"
+      [label]="store.connected() ? 'Connected' : 'Reconnecting…'"
+    />
   </div>
 
   @if (store.error(); as error) {
     <p class="text-sm text-red-600" role="alert">{{ error }}</p>
   }
 
-  <div class="flex flex-1 flex-col gap-2 overflow-y-auto rounded border border-surface-100 p-3">
+  <div class="flex flex-1 flex-col gap-2 overflow-y-auto rounded-2xl bg-surface-50 p-3">
     @if (store.initializing()) {
-      <p class="text-sm text-surface-500" role="status">Starting chat…</p>
+      <div class="flex flex-1 flex-col items-center justify-center gap-2 text-center" role="status">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" class="text-surface-300" aria-hidden="true">
+          <path d="M4 12a8 8 0 1 1 3.2 6.4L4 20l1.2-3.6A7.96 7.96 0 0 1 4 12Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+        </svg>
+        <p class="text-sm text-surface-500">Starting chat…</p>
+      </div>
     } @else if (store.messages().length === 0) {
-      <p class="text-sm text-surface-500">Send a message to start the conversation.</p>
+      <div class="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" class="text-surface-300" aria-hidden="true">
+          <path d="M4 12a8 8 0 1 1 3.2 6.4L4 20l1.2-3.6A7.96 7.96 0 0 1 4 12Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+        </svg>
+        <p class="text-sm font-medium text-surface-600">How can we help?</p>
+        <p class="text-xs text-surface-400">Send a message to start the conversation.</p>
+      </div>
     }
     @for (message of store.messages(); track message.id) {
       <div
-        class="max-w-[85%] rounded p-2 text-sm"
+        class="max-w-[85%] rounded-2xl p-2.5 text-sm shadow-sm"
         [class.self-end]="!message.authorAgentId"
         [class.bg-primary-100]="!message.authorAgentId"
-        [class.bg-surface-100]="!!message.authorAgentId"
+        [class.bg-white]="!!message.authorAgentId"
       >
         <p class="whitespace-pre-wrap">{{ message.body }}</p>
-        <p class="mt-1 text-[10px] text-surface-500">{{ message.createdAt | date: 'short' }}</p>
+        <p class="mt-1 text-[10px] text-surface-400">{{ message.createdAt | date: 'short' }}</p>
       </div>
     }
     @if (store.agentTyping()) {
-      <p class="text-xs italic text-surface-500">Agent is typing…</p>
+      <p class="text-xs italic text-surface-400">Agent is typing…</p>
     }
   </div>
 
-  <div class="flex items-end gap-2">
+  <div class="flex items-center gap-2">
     <pd-textarea
-      [rows]="2"
+      textareaClass="rounded-2xl"
+      [rows]="1"
       placeholder="Type your message…"
       [value]="draft()"
       (valueChange)="draft.set($event); onInput()"
@@ -51,6 +57,7 @@
     <pd-button
       label="Send"
       severity="primary"
+      [rounded]="true"
       [disabled]="!canSend()"
       [loading]="store.sending()"
       (clicked)="send()"

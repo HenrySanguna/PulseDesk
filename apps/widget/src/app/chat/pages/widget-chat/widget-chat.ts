@@ -1,12 +1,12 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { PdButton, PdTextarea } from '@pulsedesk/ui';
+import { PdButton, PdPulseTrace, PdTextarea } from '@pulsedesk/ui';
 import { WidgetChatStore } from '../../services/widget-chat.store';
 
 @Component({
   selector: 'pd-widget-chat',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, PdButton, PdTextarea],
+  imports: [DatePipe, PdButton, PdPulseTrace, PdTextarea],
   templateUrl: './widget-chat.html',
   styleUrl: './widget-chat.css',
 })

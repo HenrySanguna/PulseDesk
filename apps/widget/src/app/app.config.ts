@@ -4,7 +4,7 @@ import {
   provideZonelessChangeDetection,
 } from '@angular/core';
 import { provideHttpClient, withFetch } from '@angular/common/http';
-import Aura from '@primeuix/themes/aura';
+import { PRIMEUI_LICENSE_KEY, PulsePreset } from '@pulsedesk/ui/theme';
 import { providePrimeNG } from 'primeng/config';
 
 export const appConfig: ApplicationConfig = {
@@ -18,8 +18,9 @@ export const appConfig: ApplicationConfig = {
     // Required for `@pulsedesk/ui`'s PrimeNG-backed components (PdButton,
     // PdTextarea) — same theme/layer setup as `agent-console`'s app.config.ts.
     providePrimeNG({
+      license: PRIMEUI_LICENSE_KEY,
       theme: {
-        preset: Aura,
+        preset: PulsePreset,
         options: {
           darkModeSelector: false,
           cssLayer: {
