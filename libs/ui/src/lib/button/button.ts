@@ -32,6 +32,7 @@ export type PdButtonSeverity =
       [loading]="loading()"
       [icon]="icon()"
       [ariaLabel]="ariaLabel() || undefined"
+      [type]="type()"
       styleClass="transition-transform duration-150 ease-out active:scale-[0.97]"
       (onClick)="clicked.emit($event)"
     />
@@ -40,6 +41,7 @@ export type PdButtonSeverity =
 export class PdButton {
   readonly label = input('');
   readonly severity = input<PdButtonSeverity>();
+  readonly type = input<'button' | 'submit'>('button');
   readonly outlined = input(false);
   /** Pill-shaped (PrimeNG's own "rounded" button variant) — used for
    * compact composer-row actions (e.g. widget chat's Send button) rather
