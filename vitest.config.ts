@@ -6,12 +6,15 @@ import { defineConfig } from 'vitest/config';
  * (`agent-console`, `widget`) use `@angular/build:unit-test` instead and are
  * intentionally excluded here.
  *
- * `libs/ui/src/lib/table/*.spec.ts` is also included: those two files test
- * plain, framework-free functions (`sortRows`, `classifyLazyLoad`) that
- * `PdTable` delegates to — they have no Angular/DOM dependency, so they run
- * fine under this plain Node environment. `libs/ui` has no Angular
- * (`@angular/build:unit-test`) test target yet; an actual component spec
- * (one that needs `TestBed`/a DOM) must not be added to this Node-only glob.
+ * `libs/ui` is ALSO excluded here (06-add-polish): it now has its own
+ * `@angular/build:unit-test` target (`ui:test`, `libs/ui/project.json`,
+ * reusing `agent-console`'s `build` target the same way `agent-console:test`
+ * itself works — no new test infra invented) that covers every spec under
+ * `libs/ui/src`, both the plain framework-free ones (`sort-rows.spec.ts`,
+ * `lazy-load-classifier.spec.ts`) AND real Angular `TestBed` component specs
+ * (`table.spec.ts`) that need jsdom/the Angular compiler, which this
+ * Node-only config cannot provide. Keeping ui specs out of this glob avoids
+ * a component spec ever silently landing here and failing for lack of DOM.
  */
 export default defineConfig({
   test: {
@@ -22,7 +25,6 @@ export default defineConfig({
       'libs/contracts/src/**/*.spec.ts',
       'libs/db/src/**/*.spec.ts',
       'libs/sla-engine/src/**/*.spec.ts',
-      'libs/ui/src/lib/table/*.spec.ts',
     ],
     passWithNoTests: true,
     coverage: {

@@ -22,6 +22,7 @@ import { Textarea } from 'primeng/textarea';
       [formControl]="control"
       [rows]="rows()"
       [placeholder]="placeholder()"
+      [attr.aria-label]="ariaLabel() || null"
       class="w-full"
     ></textarea>
   `,
@@ -30,6 +31,10 @@ export class PdTextarea {
   readonly rows = input(3);
   readonly placeholder = input('');
   readonly disabled = input(false);
+  /** Accessible name for this textarea (tasks.md 5.2) — required whenever a
+   * consumer doesn't already associate a real `<label for>` with it (every
+   * call site in this app today relies on a nearby visual label instead). */
+  readonly ariaLabel = input('');
   readonly value = model('');
 
   protected readonly control = new FormControl('', { nonNullable: true });

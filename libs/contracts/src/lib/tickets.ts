@@ -64,9 +64,17 @@ export interface TicketWithMessages extends Ticket {
   conversationId: string | null;
 }
 
+/** A queue-row ticket plus its SLA-risk indicator (06-add-polish tasks.md
+ * 2.2) — matches `TicketsService.TicketListItem`. `atRisk` is computed only
+ * for `GET /tickets`, not `GET /tickets/:id` (`TicketWithMessages` above) —
+ * see that server-side interface's doc comment for why. */
+export interface TicketListItem extends Ticket {
+  atRisk: boolean;
+}
+
 /** Shape of `GET /tickets` — matches `TicketsService.ListTicketsResult`. */
 export interface ListTicketsResult {
-  items: Ticket[];
+  items: TicketListItem[];
   total: number;
   page: number;
   pageSize: number;

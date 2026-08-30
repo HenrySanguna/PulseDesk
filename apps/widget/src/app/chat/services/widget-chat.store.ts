@@ -11,6 +11,10 @@ export interface WidgetChatState {
   agentTyping: boolean;
   sending: boolean;
   error: string | null;
+  /** True from `init()` until the conversation is created/recovered
+   * (tasks.md 5.4) — distinguishes "still starting up" from "started, no
+   * messages yet", which looked identical before this change. */
+  initializing: boolean;
 }
 
 const initialState: WidgetChatState = {
@@ -20,6 +24,7 @@ const initialState: WidgetChatState = {
   agentTyping: false,
   sending: false,
   error: null,
+  initializing: true,
 };
 
 const TYPING_INDICATOR_TIMEOUT_MS = 4000;
@@ -139,11 +144,18 @@ export const WidgetChatStore = signalStore(
         conversations.createOrRecoverConversation().subscribe({
           next: (result) => {
             token = result.token;
-            patchState(store, { conversationId: result.conversationId, error: null });
+            patchState(store, {
+              conversationId: result.conversationId,
+              error: null,
+              initializing: false,
+            });
             connectSocket();
           },
           error: () => {
-            patchState(store, { error: 'Could not start the chat. Try reloading.' });
+            patchState(store, {
+              error: 'Could not start the chat. Try reloading.',
+              initializing: false,
+            });
           },
         });
       },

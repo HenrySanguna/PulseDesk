@@ -3,6 +3,8 @@
  * This is only a minimal backend to get started.
  */
 
+// MUST be the first import in this file — see its own doc comment.
+import './observability/tracing';
 import { parseEnv } from '@pulsedesk/contracts';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';

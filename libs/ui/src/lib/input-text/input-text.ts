@@ -22,6 +22,7 @@ import { InputText } from 'primeng/inputtext';
       [type]="type()"
       [formControl]="control"
       [placeholder]="placeholder()"
+      [attr.aria-label]="ariaLabel() || null"
       class="w-full"
     />
   `,
@@ -30,6 +31,9 @@ export class PdInputText {
   readonly type = input<'text' | 'password' | 'email'>('text');
   readonly placeholder = input('');
   readonly disabled = input(false);
+  /** Accessible name for this input (tasks.md 5.2) — see `PdTextarea`'s
+   * matching doc comment. */
+  readonly ariaLabel = input('');
   readonly value = model('');
 
   protected readonly control = new FormControl('', { nonNullable: true });

@@ -1,5 +1,8 @@
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-import { computeReconnectDelayMs } from '@pulsedesk/contracts/realtime';
+import {
+  computeReconnectDelayMs,
+  ticketPresenceRoomId,
+} from '@pulsedesk/contracts/realtime';
 import type {
   WsInboundMessage,
   WsMessage,
@@ -12,6 +15,15 @@ export interface ConversationState {
   typingFrom: WsParticipant | null;
   presentAgentIds: string[];
   connected: boolean;
+  /** The ticket-scoped presence room (06-add-polish tasks.md 3.1/3.2) —
+   * independent of `conversationId` above: every ticket gets one, whether
+   * or not it has a linked widget conversation. See
+   * `libs/contracts/src/lib/realtime.ts`'s `ticketPresenceRoomId` doc
+   * comment for why this can safely share the SAME `ws` socket/`join`/
+   * `leave`/`presence:update` mechanism as the chat room without colliding
+   * with it. */
+  ticketPresenceRoomId: string | null;
+  ticketPresentAgentIds: string[];
 }
 
 const initialState: ConversationState = {
@@ -20,6 +32,8 @@ const initialState: ConversationState = {
   typingFrom: null,
   presentAgentIds: [],
   connected: false,
+  ticketPresenceRoomId: null,
+  ticketPresentAgentIds: [],
 };
 
 /** How long a `typing` indicator stays visible after the last event, absent
@@ -50,6 +64,7 @@ export const ConversationStore = signalStore(
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
     let typingClearTimer: ReturnType<typeof setTimeout> | undefined;
     let pendingConversationId: string | null = null;
+    let pendingTicketPresenceRoomId: string | null = null;
 
     function wsUrl(): string {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -78,7 +93,15 @@ export const ConversationStore = signalStore(
       switch (envelope.event) {
         case 'joined':
         case 'presence:update':
-          patchState(store, { presentAgentIds: envelope.data.agentIds });
+          // One `conversationId`/room-key field on the wire serves BOTH the
+          // chat room and the ticket-presence room (see
+          // `ticketPresenceRoomId`'s doc comment) — route the update to
+          // whichever local field actually owns that room key.
+          if (envelope.data.conversationId === store.ticketPresenceRoomId()) {
+            patchState(store, { ticketPresentAgentIds: envelope.data.agentIds });
+          } else {
+            patchState(store, { presentAgentIds: envelope.data.agentIds });
+          }
           break;
         case 'message:new':
         case 'message:ack':
@@ -114,6 +137,9 @@ export const ConversationStore = signalStore(
         patchState(store, { connected: true });
         if (pendingConversationId) {
           send('join', { conversationId: pendingConversationId });
+        }
+        if (pendingTicketPresenceRoomId) {
+          send('join', { conversationId: pendingTicketPresenceRoomId });
         }
       });
       socket.addEventListener('message', handleMessage);
@@ -179,10 +205,45 @@ export const ConversationStore = signalStore(
           send('typing', {});
         }
       },
+      /** Joins the ticket-scoped presence room (tasks.md 3.1/3.2) —
+       * independent of, and always in addition to, whatever chat
+       * `conversationId` room `join()` above manages. A no-op if already
+       * joined to the exact same ticket's room; leaves the previous one
+       * first for the same "switching tickets without leaving leaks
+       * membership" reason `join()`'s doc comment explains. */
+      joinTicketPresence(ticketId: string): void {
+        const roomId = ticketPresenceRoomId(ticketId);
+        if (store.ticketPresenceRoomId() === roomId) {
+          return;
+        }
+        const previousRoomId = store.ticketPresenceRoomId();
+        if (previousRoomId && socket?.readyState === WebSocket.OPEN) {
+          send('leave', { conversationId: previousRoomId });
+        }
+        patchState(store, {
+          ticketPresenceRoomId: roomId,
+          ticketPresentAgentIds: [],
+        });
+        pendingTicketPresenceRoomId = roomId;
+        if (!socket) {
+          connectSocket();
+        } else {
+          send('join', { conversationId: roomId });
+        }
+      },
+      leaveTicketPresence(): void {
+        const roomId = store.ticketPresenceRoomId();
+        if (roomId) {
+          send('leave', { conversationId: roomId });
+        }
+        pendingTicketPresenceRoomId = null;
+        patchState(store, { ticketPresenceRoomId: null, ticketPresentAgentIds: [] });
+      },
       disconnect(): void {
         clearTimeout(reconnectTimer);
         clearTimeout(typingClearTimer);
         pendingConversationId = null;
+        pendingTicketPresenceRoomId = null;
         socket?.close();
         socket = null;
       },

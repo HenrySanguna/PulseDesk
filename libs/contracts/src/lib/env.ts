@@ -15,6 +15,13 @@ export const envSchema = z.object({
   // used for agent sessions — those are opaque tokens, not JWTs, per
   // openspec/project.md.
   WIDGET_JWT_SECRET: z.string().min(32),
+  // OpenTelemetry (06-add-polish tasks.md 4.1) — both optional, cost-zero
+  // by default: when unset, `apps/api/src/observability/tracing.ts` exports
+  // spans to the console instead of requiring any external/paid tracing
+  // backend. Set OTEL_EXPORTER_OTLP_ENDPOINT to point at a real collector
+  // (e.g. a local Jaeger/Grafana Tempo instance, or a hosted OTLP endpoint).
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
+  OTEL_SERVICE_NAME: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

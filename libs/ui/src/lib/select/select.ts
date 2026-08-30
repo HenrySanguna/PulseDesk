@@ -32,6 +32,10 @@ export class PdSelect<T> {
   readonly placeholder = input('');
   readonly clearable = input(false);
   readonly disabled = input(false);
+  /** Accessible name for this select (tasks.md 5.2) — see `PdTextarea`'s
+   * matching doc comment. Falls back to the selected option's label or the
+   * placeholder when empty (PrimeNG's own `$ariaLabel` computed). */
+  readonly ariaLabel = input('');
   readonly value = model<T | null>(null);
 
   protected readonly control = new FormControl<T | null>(null);

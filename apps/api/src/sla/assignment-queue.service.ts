@@ -1,11 +1,15 @@
 import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import type Redis from 'ioredis';
+import { injectTraceContext } from '../observability/trace-propagation.js';
 import { BULLMQ_PRODUCER_CONNECTION } from './sla-connections.providers.js';
 import { ASSIGNMENT_QUEUE_NAME, assignmentJobId } from './sla-queue.constants.js';
 
 export interface AssignmentJobData {
   ticketId: string;
+  /** See `SlaDueJobData.traceContext`'s doc comment — same propagation
+   * (06-add-polish tasks.md 4.2), same reason. */
+  traceContext?: Record<string, string>;
 }
 
 /** The one method `TicketsService.createTicket` actually needs — narrowed
@@ -33,7 +37,7 @@ export class AssignmentQueueService implements AssignmentQueuePort, OnModuleDest
   async enqueueAutoAssign(ticketId: string): Promise<void> {
     await this.queue.add(
       'assignment:auto',
-      { ticketId },
+      { ticketId, traceContext: injectTraceContext() },
       {
         jobId: assignmentJobId(ticketId),
         removeOnComplete: true,

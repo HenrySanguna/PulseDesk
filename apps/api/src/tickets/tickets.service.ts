@@ -25,6 +25,7 @@ import type { RealtimeEventBusPort } from '../realtime/realtime-event.js';
 import type { CreateMessageDto } from './dto/create-message.dto.js';
 import type { CreateTicketDto } from './dto/create-ticket.dto.js';
 import type { ListTicketsQueryDto } from './dto/list-tickets.dto.js';
+import { isTicketAtRisk } from './at-risk.js';
 import { assertValidTransition } from './ticket-state-machine.js';
 
 export interface TicketWithMessages extends Ticket {
@@ -39,8 +40,17 @@ export interface TicketWithMessages extends Ticket {
   conversationId: string | null;
 }
 
+/** A queue-row ticket plus its SLA-risk indicator (06-add-polish tasks.md
+ * 2.2) — scoped to `listTickets` only, not the shared `Ticket` base
+ * interface: this is the one view an agent scans to decide what to work on
+ * next, not every ticket-shaped response in the app. See `isTicketAtRisk`'s
+ * doc comment for the exact rule. */
+export interface TicketListItem extends Ticket {
+  atRisk: boolean;
+}
+
 export interface ListTicketsResult {
-  items: Ticket[];
+  items: TicketListItem[];
   total: number;
   page: number;
   pageSize: number;
@@ -134,16 +144,21 @@ export class TicketsService {
     const page = filters.page ?? 1;
     const pageSize = filters.pageSize ?? 20;
 
-    const [items, total] = await this.prisma.$transaction([
+    const [rows, total] = await this.prisma.$transaction([
       this.prisma.ticket.findMany({
         where,
         orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: { slaPolicy: { select: { resolutionMinutes: true } } },
       }),
       this.prisma.ticket.count({ where }),
     ]);
 
+    const items: TicketListItem[] = rows.map(({ slaPolicy, ...ticket }) => ({
+      ...ticket,
+      atRisk: isTicketAtRisk(ticket, slaPolicy?.resolutionMinutes),
+    }));
     return { items, total, page, pageSize };
   }
 

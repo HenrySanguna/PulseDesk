@@ -1,7 +1,9 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import { Worker } from 'bullmq';
+import { context } from '@opentelemetry/api';
+import { Worker, type Job } from 'bullmq';
 import type Redis from 'ioredis';
 import { getAgentLoad, PrismaService, TicketEventType, TicketStatus } from '@pulsedesk/db';
+import { extractTraceContext, getTracer } from '../observability/trace-propagation.js';
 import { ASSIGNMENT_WORKER_CONNECTION } from './sla-connections.providers.js';
 import type { AssignmentJobData } from './assignment-queue.service.js';
 import { ASSIGNMENT_QUEUE_NAME } from './sla-queue.constants.js';
@@ -29,12 +31,28 @@ export class AssignmentConsumer implements OnModuleInit, OnModuleDestroy {
   onModuleInit(): void {
     this.worker = new Worker<AssignmentJobData>(
       ASSIGNMENT_QUEUE_NAME,
-      (job) => this.process(job.data.ticketId),
+      (job) => this.processJob(job),
       { connection: this.connection },
     );
     this.worker.on('error', (err) => {
       this.logger.warn(`Assignment worker error: ${err.message}`);
     });
+  }
+
+  /** Extracts the job's propagated trace context (06-add-polish tasks.md
+   * 4.2 — see `SlaConsumer.process`'s matching doc comment) and runs
+   * `process()` within it. */
+  async processJob(job: Job<AssignmentJobData>): Promise<void> {
+    const extracted = extractTraceContext(job.data.traceContext);
+    await context.with(extracted, () =>
+      getTracer().startActiveSpan('assignment.consumer.process', async (span) => {
+        try {
+          await this.process(job.data.ticketId);
+        } finally {
+          span.end();
+        }
+      }),
+    );
   }
 
   /** Idempotent: re-reads the ticket first (already-assigned or gone means

@@ -1,4 +1,5 @@
 export * from './lib/button/button';
+export * from './lib/chart/chart';
 export * from './lib/input-text/input-text';
 export * from './lib/select/select';
 export * from './lib/table/column-template.directive';

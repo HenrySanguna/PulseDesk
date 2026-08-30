@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { addBusinessMinutes } from '@pulsedesk/sla-engine';
 import {
   MessageVisibility,
   PrismaService,
@@ -14,7 +15,7 @@ import { BusinessCalendarRepository } from '../sla/business-calendar.repository.
 import { SlaClockRepository } from '../sla/sla-clock.repository.js';
 import { SlaClockService } from '../sla/sla-clock.service.js';
 import { SlaQueueService } from '../sla/sla-queue.service.js';
-import { ensureAlwaysOpenCalendar } from '../sla/sla-test-fixtures.js';
+import { ALWAYS_OPEN_CALENDAR, ensureAlwaysOpenCalendar } from '../sla/sla-test-fixtures.js';
 import { TicketsService } from './tickets.service.js';
 
 /** `tickets.integration.spec.ts` fakes out SLA entirely — this file proves
@@ -235,10 +236,18 @@ describe('TicketsService SLA wiring (real Postgres + real Valkey)', () => {
     if (!reopened.dueAt) {
       throw new Error('expected dueAt to be set after reactivation');
     }
-    const remainingMinutes = Math.round(
-      (reopened.dueAt.getTime() - reopened.activeSince.getTime()) / 60_000,
-    );
-    expect(remainingMinutes).toBe(480 - 300);
+    // `complete()` folds in whatever real business time elapsed between the
+    // `activeSince` reset above and this test's own `updateStatus(RESOLVED)`
+    // call (tasks.md "Definición de terminado" fix), so `resolved.consumedMinutes`
+    // is not guaranteed to stay exactly 300 — read the real persisted value
+    // and compute the expected `dueAt` through the SAME engine function
+    // `reactivate()` itself uses, rather than assuming naive `480 - 300`
+    // wall-clock arithmetic, which silently loses a minute whenever the real
+    // moment this runs crosses `ALWAYS_OPEN_CALENDAR`'s one real daily gap
+    // (23:59-00:00, see that constant's doc comment).
+    const expectedRemaining = Math.max(480 - resolved.consumedMinutes, 0);
+    const expectedDueAt = addBusinessMinutes(reopened.activeSince, expectedRemaining, ALWAYS_OPEN_CALENDAR);
+    expect(reopened.dueAt.getTime()).toBe(expectedDueAt.getTime());
 
     // Reopening never touches the already-completed FIRST_RESPONSE clock.
     const firstResponseAfterReopen = await slaClocks.findByTicketAndKind(

@@ -1,7 +1,7 @@
 import { Controller, Get, Headers, Inject, Sse, UseGuards } from '@nestjs/common';
 import type { MessageEvent } from '@nestjs/common';
-import type { DashboardSnapshot } from '@pulsedesk/db';
-import { getDashboardSnapshot, PrismaService } from '@pulsedesk/db';
+import type { AgentLoad, DashboardSnapshot } from '@pulsedesk/db';
+import { getAgentLoad, getDashboardSnapshot, PrismaService } from '@pulsedesk/db';
 import type { Observable } from 'rxjs';
 import { AgentSessionGuard } from '../auth/agent-session.guard.js';
 import { RealtimeSseService } from './realtime-sse.service.js';
@@ -31,6 +31,19 @@ export class RealtimeController {
   @Get('dashboard/snapshot')
   getSnapshot(): Promise<DashboardSnapshot> {
     return getDashboardSnapshot(this.prisma);
+  }
+
+  /** Feeds the agent-load chart (06-add-polish tasks.md 2.1) — `getAgentLoad`
+   * (03-add-ticket-queue) existed but, like `getDashboardSnapshot` before
+   * 05-add-realtime-hybrid wired it, was never reachable over HTTP until
+   * now. Plain REST, not SSE: per-agent load changes far less often than
+   * the dashboard's ticket counts, and `DashboardStore` already refetches
+   * it on every `dashboard.snapshot` push, which is a close enough proxy
+   * for "something ticket/assignment-related just changed". */
+  @UseGuards(AgentSessionGuard)
+  @Get('dashboard/agent-load')
+  getAgentLoadSnapshot(): Promise<AgentLoad[]> {
+    return getAgentLoad(this.prisma);
   }
 
   @UseGuards(AgentSessionGuard)

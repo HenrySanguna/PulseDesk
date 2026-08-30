@@ -3,6 +3,7 @@ import type Redis from 'ioredis';
 import type { Observable } from 'rxjs';
 import { Subject } from 'rxjs';
 import { getDashboardSnapshot, PrismaService } from '@pulsedesk/db';
+import { getTracer } from '../observability/trace-propagation.js';
 import {
   DASHBOARD_BUFFER_KEY,
   DASHBOARD_BUFFER_MAX_EVENTS,
@@ -77,12 +78,23 @@ export class RealtimeEventBusService
    * right after receiving the live event never sees a shorter buffer than
    * what it was just notified about. */
   async publish<TPayload>(type: string, payload: TPayload): Promise<RealtimeEvent<TPayload>> {
-    const id = await this.connection.incr(DASHBOARD_SEQ_KEY);
-    const event: RealtimeEvent<TPayload> = { id, type, payload, ts: Date.now() };
-    await this.connection.lpush(DASHBOARD_BUFFER_KEY, JSON.stringify(event));
-    await this.connection.ltrim(DASHBOARD_BUFFER_KEY, 0, DASHBOARD_BUFFER_MAX_EVENTS - 1);
-    await this.connection.publish(DASHBOARD_CHANNEL, JSON.stringify(event));
-    return event;
+    // "Point 4" of tasks.md 4.3's four-point trace: a manual span around the
+    // bus-publish boundary, so the trace extends up to the moment the event
+    // that becomes an SSE frame is actually published — inherits whatever
+    // context is active when `publish` is called (the extracted job context,
+    // for a breach-triggered call — see `SlaConsumer.process`).
+    return getTracer().startActiveSpan('realtime.event-bus.publish', async (span) => {
+      try {
+        const id = await this.connection.incr(DASHBOARD_SEQ_KEY);
+        const event: RealtimeEvent<TPayload> = { id, type, payload, ts: Date.now() };
+        await this.connection.lpush(DASHBOARD_BUFFER_KEY, JSON.stringify(event));
+        await this.connection.ltrim(DASHBOARD_BUFFER_KEY, 0, DASHBOARD_BUFFER_MAX_EVENTS - 1);
+        await this.connection.publish(DASHBOARD_CHANNEL, JSON.stringify(event));
+        return event;
+      } finally {
+        span.end();
+      }
+    });
   }
 
   /** Recomputes the full dashboard aggregate (same query `03-add-ticket-queue`

@@ -26,6 +26,11 @@
       "import": "./src/lib/realtime.ts",
       "default": "./src/lib/realtime.ts"
     },
+    "./canned-responses": {
+      "types": "./src/lib/canned-responses.ts",
+      "import": "./src/lib/canned-responses.ts",
+      "default": "./src/lib/canned-responses.ts"
+    },
     "./package.json": "./package.json"
   },
   "dependencies": {

@@ -16,6 +16,7 @@
       <pd-select
         [options]="statusOptions"
         placeholder="Any status"
+        ariaLabel="Filter by status"
         [clearable]="true"
         [value]="draftStatus()"
         (valueChange)="draftStatus.set($event)"
@@ -26,6 +27,7 @@
       <pd-select
         [options]="priorityOptions"
         placeholder="Any priority"
+        ariaLabel="Filter by priority"
         [clearable]="true"
         [value]="draftPriority()"
         (valueChange)="draftPriority.set($event)"
@@ -35,6 +37,7 @@
       <span class="text-sm text-surface-600">Assignee ID</span>
       <pd-input-text
         placeholder="Agent UUID"
+        ariaLabel="Filter by assignee ID"
         [value]="draftAssigneeId()"
         (valueChange)="draftAssigneeId.set($event)"
       />
@@ -47,7 +50,7 @@
   </div>
 
   @if (store.error(); as error) {
-    <p class="text-sm text-red-600">{{ error }}</p>
+    <p class="text-sm text-red-600" role="alert">{{ error }}</p>
   }
 
   <pd-table
@@ -74,6 +77,11 @@
     </ng-template>
     <ng-template pdColumnTemplate="assigneeId" let-ticket>
       {{ ticket.assigneeId ?? 'Unassigned' }}
+    </ng-template>
+    <ng-template pdColumnTemplate="atRisk" let-ticket>
+      @if (ticket.atRisk) {
+        <pd-tag value="At risk" severity="danger" />
+      }
     </ng-template>
     <ng-template pdColumnTemplate="createdAt" let-ticket>
       {{ ticket.createdAt | date: 'short' }}

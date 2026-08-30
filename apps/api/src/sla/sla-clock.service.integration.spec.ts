@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { addBusinessMinutes } from '@pulsedesk/sla-engine';
 import { PrismaService, SlaClockKind } from '@pulsedesk/db';
 import { createBullMqConnection } from './bullmq-connection.provider.js';
 import { BusinessCalendarRepository } from './business-calendar.repository.js';
@@ -7,7 +8,11 @@ import { SlaClockRepository } from './sla-clock.repository.js';
 import { SlaClockService } from './sla-clock.service.js';
 import { SlaQueueService } from './sla-queue.service.js';
 import { slaDueJobId } from './sla-queue.constants.js';
-import { ensureAlwaysOpenCalendar, seedTicketForSla } from './sla-test-fixtures.js';
+import {
+  ALWAYS_OPEN_CALENDAR,
+  ensureAlwaysOpenCalendar,
+  seedTicketForSla,
+} from './sla-test-fixtures.js';
 
 /**
  * Real Postgres + real Valkey/BullMQ proof of tasks.md section 3
@@ -175,10 +180,13 @@ describe('SlaClockService (real Postgres + real Valkey)', () => {
     if (!reactivated.dueAt) {
       throw new Error('expected dueAt to be set after reactivation');
     }
-    const remainingMinutes = Math.round(
-      (reactivated.dueAt.getTime() - reactivated.activeSince.getTime()) / 60_000,
-    );
-    expect(remainingMinutes).toBe(480 - 300);
+    // Computed through the SAME engine function `reactivate()` itself uses,
+    // from the real `activeSince` it actually persisted — not naive
+    // wall-clock arithmetic, which silently loses a minute whenever the real
+    // moment this test runs happens to cross the `ALWAYS_OPEN_CALENDAR`'s one
+    // real daily gap (23:59-00:00, see that constant's doc comment).
+    const expectedDueAt = addBusinessMinutes(reactivated.activeSince, 480 - 300, ALWAYS_OPEN_CALENDAR);
+    expect(reactivated.dueAt.getTime()).toBe(expectedDueAt.getTime());
 
     // The due job is rescheduled — not left cancelled from complete().
     const jobId = slaDueJobId(clock.id, clock.targetMinutes);

@@ -15,7 +15,10 @@ export class WidgetChat {
 
   protected readonly draft = signal('');
   protected readonly canSend = computed(
-    () => this.draft().trim().length > 0 && !this.store.sending(),
+    () =>
+      this.draft().trim().length > 0 &&
+      !this.store.sending() &&
+      !this.store.initializing(),
   );
 
   constructor() {

@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { JwtService } from '@nestjs/jwt';
 import { WebSocket } from 'ws';
+import { ticketPresenceRoomId } from '@pulsedesk/contracts/realtime';
 import { createValkeyClient, PrismaService } from '@pulsedesk/db';
 import { seedTestAgent } from '../auth/test-fakes.js';
 import { SessionsService } from '../auth/sessions.service.js';
@@ -292,6 +293,43 @@ describe('ConversationGateway (real Nest app + real ws client)', () => {
     socket.close();
     agent1.close();
     agent2.close();
+  }, 10_000);
+
+  it('3.1/3.2: two agents joining the same TICKET-scoped presence room (06-add-polish) see the same presence:update the widget-conversation room already proves above', async () => {
+    // Deliberately does NOT create a widget conversation — the whole point
+    // of `ticketPresenceRoomId` (see its doc comment in
+    // `libs/contracts/src/lib/realtime.ts`) is that a ticket gets presence
+    // "for free" through the exact same `join`/`presence:update` mechanism
+    // even when it has no linked `Conversation` row at all (an
+    // agent-created ticket). A random UUID stands in for a real ticket id —
+    // `handleJoin` never validates the room key against a real `Ticket` row
+    // (confirmed by reading `ConversationGateway.handleJoin` directly), so
+    // this is a faithful proof of the actual server-side mechanism
+    // `ConversationStore.joinTicketPresence()` relies on client-side.
+    const ticketId = randomUUID();
+    const roomId = ticketPresenceRoomId(ticketId);
+
+    const firstAgent = await connect('', { cookie: await agentCookie() });
+    firstAgent.send(JSON.stringify({ event: 'join', data: { conversationId: roomId } }));
+    await waitForEnvelope(firstAgent, (m) => m.event === 'joined');
+
+    // spec.md scenario "Dos agentes abren el mismo ticket": the FIRST agent
+    // (already joined) must receive an aviso the instant the SECOND agent
+    // joins — asserted here as the resulting `presence:update` broadcast
+    // reaching `firstAgent`'s own socket, not just a DB/service-level check.
+    const presencePromise = waitForEnvelope(firstAgent, (m) => m.event === 'presence:update');
+    const secondAgent = await connect('', { cookie: await agentCookie(secondAgentId) });
+    secondAgent.send(JSON.stringify({ event: 'join', data: { conversationId: roomId } }));
+
+    const presence = await presencePromise;
+    expect(presence.data['conversationId']).toBe(roomId);
+    expect(presence.data['agentIds']).toEqual(
+      expect.arrayContaining([agentId, secondAgentId]),
+    );
+    expect((presence.data['agentIds'] as string[]).length).toBe(2);
+
+    firstAgent.close();
+    secondAgent.close();
   }, 10_000);
 
   it('typing indicators are broadcast to the room but not echoed back to the sender', async () => {

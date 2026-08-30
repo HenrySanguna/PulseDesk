@@ -27,7 +27,14 @@
     </tr>
   </ng-template>
   <ng-template #body let-row>
-    <tr class="cursor-pointer" (click)="rowClick.emit(row)">
+    <tr
+      class="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-500"
+      tabindex="0"
+      role="button"
+      (click)="rowClick.emit(row)"
+      (keydown.enter)="rowClick.emit(row)"
+      (keydown.space)="$event.preventDefault(); rowClick.emit(row)"
+    >
       @for (col of columns(); track col.field) {
         <td>
           @if (templateFor(col.field); as tpl) {

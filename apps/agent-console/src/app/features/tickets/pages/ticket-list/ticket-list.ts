@@ -10,7 +10,11 @@ import {
   PdTag,
 } from '@pulsedesk/ui';
 import type { PdTablePageEvent, PdTableColumn } from '@pulsedesk/ui';
-import type { Ticket, TicketPriority, TicketStatus } from '@pulsedesk/contracts/tickets';
+import type {
+  TicketListItem,
+  TicketPriority,
+  TicketStatus,
+} from '@pulsedesk/contracts/tickets';
 import type { PdTagSeverity } from '@pulsedesk/ui';
 import {
   TICKET_PRIORITY_OPTIONS,
@@ -46,11 +50,12 @@ export class TicketList {
   protected readonly draftPriority = signal<TicketPriority | null>(null);
   protected readonly draftAssigneeId = signal('');
 
-  protected readonly columns: PdTableColumn<Ticket>[] = [
+  protected readonly columns: PdTableColumn<TicketListItem>[] = [
     { field: 'subject', header: 'Subject' },
     { field: 'status', header: 'Status', sortable: true },
     { field: 'priority', header: 'Priority', sortable: true },
     { field: 'assigneeId', header: 'Assignee' },
+    { field: 'atRisk', header: 'SLA' },
     { field: 'createdAt', header: 'Created', sortable: true },
   ];
 
@@ -71,7 +76,7 @@ export class TicketList {
     this.store.loadPage({ page, pageSize: event.rows });
   }
 
-  protected openTicket(ticket: Ticket): void {
+  protected openTicket(ticket: TicketListItem): void {
     this.router.navigate(['/tickets', ticket.id]);
   }
 

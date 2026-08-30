@@ -3,8 +3,8 @@
     <h1 class="text-lg font-semibold">Chat with us</h1>
     <span
       class="flex items-center gap-1 text-xs"
-      [class.text-green-600]="store.connected()"
-      [class.text-surface-400]="!store.connected()"
+      [class.text-green-700]="store.connected()"
+      [class.text-surface-600]="!store.connected()"
     >
       <span
         class="h-2 w-2 rounded-full"
@@ -16,11 +16,13 @@
   </div>
 
   @if (store.error(); as error) {
-    <p class="text-sm text-red-600">{{ error }}</p>
+    <p class="text-sm text-red-600" role="alert">{{ error }}</p>
   }
 
   <div class="flex flex-1 flex-col gap-2 overflow-y-auto rounded border border-surface-100 p-3">
-    @if (store.messages().length === 0) {
+    @if (store.initializing()) {
+      <p class="text-sm text-surface-500" role="status">Starting chat…</p>
+    } @else if (store.messages().length === 0) {
       <p class="text-sm text-surface-500">Send a message to start the conversation.</p>
     }
     @for (message of store.messages(); track message.id) {

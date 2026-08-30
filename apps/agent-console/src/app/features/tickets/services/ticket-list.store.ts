@@ -4,7 +4,7 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { EMPTY, catchError, pipe, switchMap, tap } from 'rxjs';
 import type {
   ListTicketsQuery,
-  Ticket,
+  TicketListItem,
   TicketPriority,
   TicketStatus,
 } from '@pulsedesk/contracts/tickets';
@@ -17,7 +17,7 @@ export interface TicketListFilters {
 }
 
 export interface TicketListState {
-  items: Ticket[];
+  items: TicketListItem[];
   total: number;
   page: number;
   pageSize: number;

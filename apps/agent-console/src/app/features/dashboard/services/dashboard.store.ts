@@ -1,21 +1,28 @@
 import { inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-import { DASHBOARD_EVENT_TYPE, type DashboardSnapshot } from '@pulsedesk/contracts/realtime';
+import {
+  DASHBOARD_EVENT_TYPE,
+  type AgentLoad,
+  type DashboardSnapshot,
+} from '@pulsedesk/contracts/realtime';
 
 export interface DashboardState {
   snapshot: DashboardSnapshot | null;
+  agentLoad: AgentLoad[] | null;
   connected: boolean;
   error: string | null;
 }
 
 const initialState: DashboardState = {
   snapshot: null,
+  agentLoad: null,
   connected: false,
   error: null,
 };
 
 const SNAPSHOT_URL = '/api/realtime/dashboard/snapshot';
+const AGENT_LOAD_URL = '/api/realtime/dashboard/agent-load';
 const STREAM_URL = '/api/realtime/dashboard';
 
 /**
@@ -38,6 +45,19 @@ export const DashboardStore = signalStore(
     const http = inject(HttpClient);
     let eventSource: EventSource | null = null;
 
+    function loadAgentLoad(): void {
+      http
+        .get<AgentLoad[]>(AGENT_LOAD_URL, { withCredentials: true })
+        .subscribe({
+          next: (agentLoad) => patchState(store, { agentLoad }),
+          // No dedicated error surface for this one chart — the snapshot
+          // request above already covers the shared "Could not load the
+          // dashboard" error state, and a failed agent-load fetch alone
+          // just leaves that chart in its loading/empty state.
+          error: () => undefined,
+        });
+    }
+
     return {
       /** Idempotent — safe to call from every page that shows the
        * dashboard; the underlying `EventSource` is opened once per app
@@ -50,6 +70,7 @@ export const DashboardStore = signalStore(
             error: () =>
               patchState(store, { error: 'Could not load the dashboard.' }),
           });
+        loadAgentLoad();
 
         if (eventSource) {
           return;
@@ -63,6 +84,12 @@ export const DashboardStore = signalStore(
           try {
             const snapshot = JSON.parse(messageEvent.data) as DashboardSnapshot;
             patchState(store, { snapshot, connected: true, error: null });
+            // Ticket/assignment changes that move the dashboard counters
+            // are also the events most likely to have shifted per-agent
+            // load — see `RealtimeController.getAgentLoadSnapshot`'s doc
+            // comment for why a full SSE channel isn't worth adding for
+            // this chart alone.
+            loadAgentLoad();
           } catch {
             // Malformed frame — ignore, the next one will self-correct.
           }

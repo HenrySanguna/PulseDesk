@@ -10,9 +10,10 @@
       "executor": "@nx/eslint:lint"
     },
     "test": {
-      "executor": "nx:run-commands",
+      "executor": "@angular/build:unit-test",
       "options": {
-        "command": "vitest run libs/ui/src/lib/table"
+        "buildTarget": "agent-console:build:development",
+        "watch": false
       }
     }
   }

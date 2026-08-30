@@ -1,0 +1,22 @@
+// Agent productivity (06-add-polish, tasks.md 1.1/1.2): predefined reply
+// shortcuts an agent can insert into a ticket reply via a `/shortcut`
+// autocomplete trigger in the message editor. Flat and shared — any agent
+// can use or edit any response, no per-agent ownership (not asked for by
+// tasks.md, and proposal.md explicitly carries no new architecture
+// decisions for this change).
+
+model CannedResponse {
+  id        String   @id @default(uuid())
+  // The `/shortcut` trigger typed in the reply editor — e.g. "ty" for
+  // "Thank you for reaching out...". Case-sensitive and unique: unique so
+  // autocomplete never has to disambiguate two responses for the same
+  // typed trigger; case-sensitive because that's the plain, predictable
+  // behavior for a short, deliberately-typed abbreviation (unlike an email
+  // address, which is why `Agent.email` uses `@db.Citext` and this
+  // doesn't).
+  shortcut  String   @unique
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
+import { CannedResponsesModule } from '../canned-responses/canned-responses.module.js';
 import { HealthModule } from '../health/health.module.js';
 import { RealtimeModule } from '../realtime/realtime.module.js';
 import { SlaModule } from '../sla/sla.module.js';
@@ -15,6 +16,7 @@ import { AppService } from './app.service';
     WidgetModule,
     SlaModule,
     TicketsModule,
+    CannedResponsesModule,
     // @Global() — see realtime/realtime.module.ts's doc comment for why it
     // must be imported here (once) rather than by TicketsModule/SlaModule.
     RealtimeModule,

@@ -62,6 +62,7 @@
     "@primeuix/themes": "3.0.0",
     "@prisma/client": "^7.10.0",
     "bullmq": "^6.3.2",
+    "chart.js": "^4.5.0",
     "ioredis": "^5.4.2",
     "luxon": "^3.7.2",
     "primeng": "22.0.0",

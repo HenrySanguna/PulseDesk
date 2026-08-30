@@ -14,6 +14,7 @@ export type {
   TicketEvent,
   SlaPolicy,
   SlaClock,
+  CannedResponse,
   BusinessCalendar as BusinessCalendarRow,
 } from './generated/client.js';
 export {

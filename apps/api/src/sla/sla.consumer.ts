@@ -1,6 +1,8 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { context } from '@opentelemetry/api';
 import { Worker, type Job } from 'bullmq';
 import type Redis from 'ioredis';
+import { extractTraceContext, getTracer } from '../observability/trace-propagation.js';
 import { SLA_WORKER_CONNECTION } from './sla-connections.providers.js';
 import type { SlaDueJobData } from './sla-queue.service.js';
 import { SLA_QUEUE_NAME } from './sla-queue.constants.js';
@@ -32,10 +34,27 @@ export class SlaConsumer implements OnModuleInit, OnModuleDestroy {
     this.worker.on('error', (err) => {
       this.logger.warn(`SLA worker error: ${err.message}`);
     });
+    this.worker.on('failed', (job, err) => {
+      this.logger.warn(`SLA job ${job?.id ?? '(unknown)'} failed: ${err.message}`);
+    });
   }
 
+  /** Runs the actual breach inside the span/context extracted from the
+   * job's `traceContext` (06-add-polish tasks.md 4.2/4.3, "point 3" of the
+   * four-point trace) — every downstream `await` in `breach()`, including
+   * `RealtimeEventBusService.publish`'s own span ("point 4"), inherits this
+   * SAME trace via `AsyncLocalStorageContextManager`. */
   async process(job: Job<SlaDueJobData>): Promise<void> {
-    await this.slaClockService.breach(job.data.clockId);
+    const extracted = extractTraceContext(job.data.traceContext);
+    await context.with(extracted, () =>
+      getTracer().startActiveSpan('sla.consumer.process', async (span) => {
+        try {
+          await this.slaClockService.breach(job.data.clockId);
+        } finally {
+          span.end();
+        }
+      }),
+    );
   }
 
   async onModuleDestroy(): Promise<void> {

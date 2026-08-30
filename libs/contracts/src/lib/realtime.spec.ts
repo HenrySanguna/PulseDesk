@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeReconnectDelayMs } from './realtime.js';
+import { computeReconnectDelayMs, ticketPresenceRoomId } from './realtime.js';
 
 describe('computeReconnectDelayMs', () => {
   it('doubles the delay on each successive attempt', () => {
@@ -20,5 +20,17 @@ describe('computeReconnectDelayMs', () => {
 
   it('treats a negative attempt the same as attempt 0', () => {
     expect(computeReconnectDelayMs(-5)).toBe(computeReconnectDelayMs(0));
+  });
+});
+
+describe('ticketPresenceRoomId', () => {
+  it('prefixes the ticket id so it can never collide with a real conversationId', () => {
+    const ticketId = '11111111-1111-1111-1111-111111111111';
+    expect(ticketPresenceRoomId(ticketId)).toBe(`ticket:${ticketId}`);
+    expect(ticketPresenceRoomId(ticketId)).not.toBe(ticketId);
+  });
+
+  it('is deterministic for the same ticket id', () => {
+    expect(ticketPresenceRoomId('abc')).toBe(ticketPresenceRoomId('abc'));
   });
 });
